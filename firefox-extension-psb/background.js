@@ -156,7 +156,7 @@ async function importPsb() {
   running = true;
   let tabId = null;
   try {
-    await notify("ПСБ — импорт", "Открываю выписку в фоновой вкладке Firefox…");
+    await notify("ПСБ — импорт", "Ищу уже открытую авторизованную вкладку выписки…");
     let health;
     try {
       health = await fetch(LOCAL_HEALTH, { cache: "no-store" });
@@ -165,33 +165,19 @@ async function importPsb() {
       throw new Error("Локальный Ozon Bill недоступен. Запустите ./run.sh. " + (error.message || error));
     }
 
-    // active:false is intentional: the bank page is never brought to the foreground.
-    const tab = await browser.tabs.create({ url: STATEMENT_URL, active: false });
-    tabId = tab.id;
-    await waitForTab(tabId);
+    // Reuse the existing bank tab. Creating a new tab can invalidate PSB's
+    // tab-bound authentication/sessionStorage and trigger another password prompt.
+    const psbTabs = await browser.tabs.query({ url: "https://ib.psbank.ru/*" });
+    const statementTab = psbTabs.find(tab =>
+      tab.url && tab.url.includes("/lk/products/cards/account/") &&
+      tab.url.includes("/about/statement")
+    );
+    if (!statementTab) {
+      throw new Error("Не найдена открытая вкладка выписки ПСБ. Один раз откройте выписку и войдите в банк вручную в Firefox. После входа оставьте эту вкладку открытой — расширение будет использовать её, не создавая новых страниц.");
+    }
+    tabId = statementTab.id;
 
-    const current = await browser.tabs.get(tabId);
-    let finalUrl;
-    try { finalUrl = new URL(current.url); } catch (_) {
-      throw new Error("Firefox не получил конечный адрес страницы ПСБ (адрес отсутствует или некорректен).");
-    }
-    const host = finalUrl.hostname.toLowerCase();
-    const path = finalUrl.pathname.toLowerCase();
-    if (host !== "ib.psbank.ru") {
-      const safeTarget = host + path;
-      if (host.endsWith(".psbank.ru") || host === "psbank.ru") {
-        throw new Error("ПСБ перенаправил на другой адрес: " + safeTarget + ". Вероятно, требуется повторная авторизация или подтверждение. Войдите в ПСБ вручную в этом профиле Firefox и повторите импорт.");
-      }
-      throw new Error("После загрузки Firefox оказался на другом сайте: " + safeTarget + ". Проверьте доступность ПСБ в этом профиле.");
-    }
-    if (/login|auth|signin|sso/i.test(path)) {
-      throw new Error("Сессия ПСБ истекла или требуется подтверждение. Войдите в банк в обычной вкладке Firefox и повторите импорт.");
-    }
-    if (!current.url.includes("/about/statement")) {
-      throw new Error("Не удалось открыть сохранённую страницу выписки. Проверьте доступ к счёту.");
-    }
-
-    await notify("ПСБ — получаю выписку", "Запускаю штатное скачивание CSV в фоновой вкладке…");
+    await notify("ПСБ — получаю выписку", "Работаю в существующей авторизованной вкладке. Новая страница не открывается.");
     const result = await browser.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
@@ -221,7 +207,7 @@ async function importPsb() {
     await notify("ПСБ — ошибка импорта", error.message || String(error), "!");
     console.error("PSB import failed:", error);
   } finally {
-    if (tabId !== null) await browser.tabs.remove(tabId).catch(() => {});
+    // Deliberately do not close or navigate the authenticated PSB tab.
     running = false;
   }
 }
