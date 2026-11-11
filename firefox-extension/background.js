@@ -5,6 +5,13 @@ const NOTIFICATION_ID = "ozon-bill-sync";
 // Show this in Firefox notifications so it remains visible after redirects.
 browser.runtime.onMessage.addListener(message => {
   switch (message?.type) {
+    case "ozon-content-script-loaded":
+      return notify("Ozon — скрипт расширения запущен",
+        "Автоскрипт работает на странице " + (message.host || "Ozon") + ".", "...");
+    case "ozon-pin-script-error":
+      return notify("Ozon — ошибка скрипта PIN",
+        String(message.error || "Неизвестная ошибка").slice(0, 300), "!");
+
     case "ozon-pin-screen-detected":
       return notify("Ozon — обнаружен экран PIN",
         "Страница запроса PIN найдена. Проверяю сохранённый код и поля ввода…", "...");
@@ -24,7 +31,26 @@ browser.runtime.onMessage.addListener(message => {
   }
 });
 
-async function notify(title, message, badge = "!") {
+async function notify(title, message, badge = "!", eventType = null) {
+  // Keep a durable diagnostic history in extension storage. This remains
+  // available in the options page after temporary Ozon tabs are closed.
+  try {
+    const { ozonDiagnosticLog = [] } = await browser.storage.local.get("ozonDiagnosticLog");
+    const inferredType = eventType || (
+      title.includes("успешно") ? "import-success" :
+      title.includes("ошибка") ? "import-error" :
+      title.includes("сохранение") ? "import-saving" :
+      title.includes("импорт") ? "import-started" : title
+    );
+    const entry = {
+      type: inferredType,
+      time: new Date().toISOString(),
+      detail: String(message || "").slice(0, 500)
+    };
+    await browser.storage.local.set({ ozonDiagnosticLog: [...ozonDiagnosticLog, entry].slice(-100) });
+  } catch (error) {
+    console.error("Не удалось сохранить журнал Ozon:", error);
+  }
   // Badge is visible on the extension icon even if desktop notifications are disabled.
   try {
     await browser.action.setBadgeBackgroundColor({ color: badge === "OK" ? "#16803c" : badge === "..." ? "#2563eb" : "#b42318" });
@@ -170,6 +196,7 @@ async function getOperationsFromBackgroundTab() {
   });
   try {
     await waitForTabComplete(tab.id);
+    await notify("Ozon — страница загружена", "Фоновая вкладка Ozon загрузилась. Ожидаю вход в Ozon Банк…", "...", "import-ozon-loaded");
     await waitForFinanceReturn(tab.id);
     const current = await browser.tabs.get(tab.id);
     if (!current.url || new URL(current.url).hostname !== "finance.ozon.ru") {
@@ -192,11 +219,11 @@ async function getOperationsFromBackgroundTab() {
 
 browser.action.onClicked.addListener(async () => {
   try {
-    await notify("Ozon Bill — выполняется импорт", "Открываю Ozon в фоновой вкладке и получаю операции…", "...");
+    await notify("Ozon Bill — выполняется импорт", "Открываю Ozon в фоновой вкладке и получаю операции…", "...", "import-started");
     const payload = await getOperationsFromBackgroundTab();
     if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Возможно, требуется повторный вход в аккаунт.");
 
-    await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…", "...");
+    await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…", "...", "import-data-received");
     try {
       const health = await fetch("http://127.0.0.1:8765/api/health", { method: "GET", cache: "no-store" });
       if (!health.ok) throw new Error("HTTP " + health.status);
