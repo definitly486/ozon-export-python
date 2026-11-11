@@ -158,7 +158,7 @@ def sync_operations(
 
 def get_all_operations(db_path: str | os.PathLike[str] | None = None) -> list[dict[str, Any]]:
     init_db(db_path)
-    with _connect(db_path) as connection:
+    with _connection(db_path) as connection:
         rows = connection.execute(
             "SELECT raw_json FROM operations ORDER BY operation_time DESC"
         ).fetchall()
@@ -167,7 +167,7 @@ def get_all_operations(db_path: str | os.PathLike[str] | None = None) -> list[di
 
 def get_stats(db_path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     init_db(db_path)
-    with _connect(db_path) as connection:
+    with _connection(db_path) as connection:
         total = connection.execute("SELECT COUNT(*) FROM operations").fetchone()[0]
         confirmed = connection.execute(
             "SELECT COUNT(*) FROM operations WHERE status = 'GROUP_OPERATION_CONFIRMED'"
