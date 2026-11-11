@@ -192,6 +192,31 @@ async function capturePsbCsv() {
         return type === "date" || /дата|period|период|с\s*\(от\)|по\s*\(до\)/i.test(hint) ||
           /^\d{2}\.\d{2}\.\d{4}$/.test(el.value || "");
       });
+    // PSB currently renders the period as one combined input, e.g.
+    // "От - До" = "11.10.2026 – 11.11.2026", rather than two date fields.
+    // Update that range as a single controlled input and dispatch input/change.
+    if (dateInputs.length === 1) {
+      const range = dateInputs[0];
+      const rangeHint = [
+        range.getAttribute("aria-label"), range.getAttribute("placeholder"),
+        range.getAttribute("name"), range.value
+      ].join(" ").toLocaleLowerCase("ru-RU");
+      if (/от\s*[-–—]\s*до/.test(rangeHint) ||
+          /^\d{2}\.\d{2}\.\d{4}\s*[–—-]\s*\d{2}\.\d{2}\.\d{4}$/.test(normalize(range.value))) {
+        const today = new Date();
+        const endValue = [
+          String(today.getDate()).padStart(2, "0"),
+          String(today.getMonth() + 1).padStart(2, "0"),
+          today.getFullYear()
+        ].join(".");
+        const minDate = range.getAttribute("min") || range.getAttribute("data-min-date") || "";
+        const startValue = /^\\d{2}\\.\\d{2}\\.\\d{4}$/.test(minDate) ? minDate : "01.01.2000";
+        setNativeValue(range, startValue + " – " + endValue);
+        await wait(1800);
+        return "combined-date-range";
+      }
+    }
+
     if (dateInputs.length >= 2) {
       const today = new Date();
       const endIso = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"),
