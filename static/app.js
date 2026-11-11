@@ -138,6 +138,9 @@ $('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};$('n
 $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(i));try{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});if(!r.ok){const j=await r.json();throw Error(j.error);}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`bank_operations_${ymd(new Date())}.csv`;a.click();URL.revokeObjectURL(url);msg(`Экспортировано строк: ${items.length}`);}catch(e){msg(e.message,true);}};
 
 
+let lastDatabaseSync = null;
+let databasePollInProgress = false;
+
 async function refreshDbStatus(stats) {
  try {
   if (!stats) {
@@ -145,13 +148,41 @@ async function refreshDbStatus(stats) {
    if (!response.ok) throw Error('Не удалось прочитать базу');
    stats = await response.json();
   }
+  if (stats.last_sync_at) lastDatabaseSync = stats.last_sync_at;
   const last = stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : 'ещё не выполнялась';
   $('dbStatus').textContent = `Локальная база SQLite: Ozon — ${stats.total}, ПСБ — ${stats.psb_total||0}. Подтверждённых Ozon: ${stats.confirmed}, HOLD: ${stats.hold}. Последнее обновление: ${last}.`;
  } catch (e) {
   $('dbStatus').textContent = 'Не удалось получить состояние локальной базы: ' + e.message;
  }
 }
+
+// The Firefox extension writes directly to SQLite. Poll the lightweight stats
+// endpoint so an already-open dashboard refreshes itself after that import.
+async function checkDatabaseForExternalChanges() {
+ if (databasePollInProgress || document.hidden) return;
+ databasePollInProgress = true;
+ try {
+  const response = await fetch('/api/stats', {cache:'no-store'});
+  if (!response.ok) return;
+  const stats = await response.json();
+  if (stats.last_sync_at && lastDatabaseSync && stats.last_sync_at !== lastDatabaseSync) {
+   lastDatabaseSync = stats.last_sync_at;
+   await reloadPeriodFromDatabase();
+  } else if (stats.last_sync_at && !lastDatabaseSync) {
+   lastDatabaseSync = stats.last_sync_at;
+  }
+  refreshDbStatus(stats);
+ } catch (_) {
+  // A temporary polling failure should not interrupt normal table interaction.
+ } finally {
+  databasePollInProgress = false;
+ }
+}
 refreshDbStatus();
+setInterval(checkDatabaseForExternalChanges, 3000);
+document.addEventListener('visibilitychange', () => {
+ if (!document.hidden) checkDatabaseForExternalChanges();
+});
 
 
 const psbBookmarklet = `javascript:(()=>{const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';};const find=t=>{const all=[...document.querySelectorAll('button,a,[role="button"],[tabindex],div,span')].filter(e=>visible(e)&&norm(e.innerText||e.textContent)===t);all.sort((a,b)=>{const score=e=>(e.matches('button,a,[role="button"]')?0:1)+(e.querySelector('*')?1:0);return score(a)-score(b);});return all[0];};const click=e=>(e.closest('button,a,[role="button"]')||e).click();const csv=find('Скачать в CSV');if(csv){click(csv);return;}const open=find('Получить выписку');if(!open){alert('Не найдена кнопка «Получить выписку». Откройте страницу выписки ПСБ и попробуйте ещё раз.');return;}click(open);setTimeout(()=>{const item=find('Скачать в CSV');if(!item){alert('Меню выписки открылось, но пункт «Скачать в CSV» не найден. Откройте меню вручную и нажмите закладку ещё раз.');return;}click(item);},500);})();`;
