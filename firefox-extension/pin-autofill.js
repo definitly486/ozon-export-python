@@ -3,7 +3,8 @@
   let reportedScreen = false;
   let reportedMissingFields = false;
   let reportedMissingPin = false;
-  const report = (type, extra = {}) => browser.runtime.sendMessage({ type, ...extra }).catch(() => {});
+  const report = (type, extra = {}) =>
+    browser.runtime.sendMessage({ type, host: location.hostname, ...extra }).catch(() => {});
   const PIN_RE = /^\d{4}$/;
   const visible = el => {
     const r = el.getBoundingClientRect();
@@ -19,11 +20,19 @@
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
-  // The Ozon PIN screen identifies its four boxes through this nearby prompt.
+  function pageText() {
+    return document.body?.innerText || document.documentElement?.innerText || "";
+  }
+  function isPinScreen() {
+    const text = pageText().toLowerCase();
+    return (text.includes("код-пароль") || text.includes("код пароль") ||
+      text.includes("код доступа")) &&
+      (text.includes("вход") || text.includes("войти") || text.includes("ozon"));
+  }
   function findOzonPinFields() {
     const labels = Array.from(document.querySelectorAll("body *"))
       .filter(el => el.children.length === 0 &&
-        /введите\s+код-пароль\s+для\s+входа/i.test(el.textContent || ""));
+        /(код-пароль|код пароль|код доступа)/i.test(el.textContent || ""));
     for (const label of labels) {
       let node = label;
       for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
@@ -48,9 +57,7 @@
     return single ? [single] : null;
   }
   async function tryFill() {
-    if (filling) return;
-    const promptVisible = /введите\s+код-пароль\s+для\s+входа/i.test(document.body?.innerText || "");
-    if (!promptVisible) return;
+    if (filling || !isPinScreen()) return;
     if (!reportedScreen) {
       reportedScreen = true;
       report("ozon-pin-screen-detected");
@@ -80,8 +87,6 @@
         setValue(fields[0], ozonPin);
         fields[0].focus();
       }
-      // Report the result outside the temporary tab so the user can see it
-      // even when the Ozon page redirects and the background tab is closed.
       report("ozon-pin-autofilled", { fieldCount: fields.length });
     } finally { filling = false; }
   }
@@ -91,9 +96,13 @@
     scheduled = true;
     setTimeout(() => {
       scheduled = false;
-      tryFill().catch(error => console.debug("Ozon PIN autofill:", error));
+      tryFill().catch(error => {
+        console.error("Ozon PIN autofill:", error);
+        report("ozon-pin-script-error", { error: String(error?.message || error) });
+      });
     }, 250);
   };
+  report("ozon-content-script-loaded", { frameUrl: location.href });
   const observer = new MutationObserver(schedule);
   if (document.documentElement) observer.observe(document.documentElement, {
     childList: true, subtree: true, attributes: true
