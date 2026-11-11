@@ -149,6 +149,26 @@ def import_operations():
         return jsonify(error=str(exc)), 400
 
 
+@app.post("/api/psb/auto-sync")
+def auto_sync_psb():
+    """Receive the CSV text captured from the authenticated PSB page."""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or not isinstance(payload.get("csv"), str):
+        return jsonify(error="Расширение не передало содержимое CSV-выписки ПСБ."), 400
+    try:
+        parsed = parse_psb_csv(payload["csv"])
+        sync_summary = sync_psb_operations(parsed)
+        return jsonify(
+            ok=True,
+            sync=sync_summary,
+            imported=len(parsed),
+            database_total=get_psb_stats()["total"],
+            message=f"ПСБ обновлён: новых {sync_summary.get('new', 0)}, изменённых {sync_summary.get('updated', 0)}, без изменений {sync_summary.get('unchanged', 0)}.",
+        )
+    except (PsbStatementError, ValueError) as exc:
+        return jsonify(error=str(exc)), 400
+
+
 @app.post("/api/psb/import")
 def import_psb_statement():
     try:
