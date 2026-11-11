@@ -2,7 +2,25 @@ const $ = (id) => document.getElementById(id);
 const today = new Date();
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const first = new Date(today.getFullYear(), today.getMonth(), 1);
-$('start').value = ymd(first); $('end').value = ymd(today); $('end').max = ymd(today);
+const DEFAULT_START = ymd(first), DEFAULT_END = ymd(today);
+$('end').max = DEFAULT_END;
+
+// Restore the last selected period after a reload or browser restart.
+try {
+ const savedStart = localStorage.getItem('ozonBillStartDate');
+ const savedEnd = localStorage.getItem('ozonBillEndDate');
+ $('start').value = savedStart && /^\\d{4}-\\d{2}-\\d{2}$/.test(savedStart) ? savedStart : DEFAULT_START;
+ $('end').value = savedEnd && /^\\d{4}-\\d{2}-\\d{2}$/.test(savedEnd) && savedEnd <= DEFAULT_END ? savedEnd : DEFAULT_END;
+} catch (_) {
+ $('start').value = DEFAULT_START;
+ $('end').value = DEFAULT_END;
+}
+function saveSelectedPeriod() {
+ try {
+  localStorage.setItem('ozonBillStartDate', $('start').value);
+  localStorage.setItem('ozonBillEndDate', $('end').value);
+ } catch (_) {}
+}
 let operations = []; let selected = new Set();
 const money = n => Number(n || 0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2});
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -68,8 +86,8 @@ function schedulePeriodRefresh() {
  clearTimeout(dateRefreshTimer);
  dateRefreshTimer=setTimeout(reloadPeriodFromDatabase,250);
 }
-$('start').addEventListener('change',schedulePeriodRefresh);
-$('end').addEventListener('change',schedulePeriodRefresh);
+$('start').addEventListener('change',()=>{saveSelectedPeriod();schedulePeriodRefresh();});
+$('end').addEventListener('change',()=>{saveSelectedPeriod();schedulePeriodRefresh();});
 
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
