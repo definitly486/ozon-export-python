@@ -188,29 +188,54 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
 }
 
 async function getOperationsFromBackgroundTab() {
-  // Open a temporary tab. If Ozon requires authentication, keep it open and
-  // let the user complete the normal login before continuing the import.
   const tab = await browser.tabs.create({
     url: "https://finance.ozon.ru/lk",
     active: false
   });
   try {
+    await notify("Ozon — страница загружена",
+      "Фоновая вкладка загружена. Проверяю адрес и состояние авторизации…", "...", "import-ozon-loaded");
     await waitForTabComplete(tab.id);
-    await notify("Ozon — страница загружена", "Фоновая вкладка Ozon загрузилась. Ожидаю вход в Ozon Банк…", "...", "import-ozon-loaded");
     await waitForFinanceReturn(tab.id);
     const current = await browser.tabs.get(tab.id);
     if (!current.url || new URL(current.url).hostname !== "finance.ozon.ru") {
-      throw new Error("Не удалось вернуться в Ozon Банк. Текущий адрес: " + (current.url || "неизвестен"));
+      throw new Error("Ожидался finance.ozon.ru, но текущий адрес: " + (current.url || "неизвестен"));
     }
-    const injected = await browser.scripting.executeScript({
-      target: { tabId: tab.id },
-      world: "MAIN",
-      func: collectOzonOperations
-    });
-    const payload = injected?.[0]?.result;
+
+    await notify("Ozon — запрашиваю операции",
+      "Страница банка открыта. Выполняю запрос списка операций…", "...", "import-api-request");
+    let injected;
+    try {
+      injected = await browser.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: "MAIN",
+        func: collectOzonOperations
+      });
+    } catch (error) {
+      throw new Error("Firefox не смог выполнить запрос на странице Ozon: " +
+        String(error?.message || error));
+    }
+
+    const first = Array.isArray(injected) ? injected[0] : null;
+    const payload = first?.result;
+    if (!first) {
+      throw new Error("Firefox не вернул результат выполнения скрипта. Адрес: " + current.url);
+    }
+    if (first.error) {
+      throw new Error("Ошибка выполнения запроса Ozon: " +
+        String(first.error.message || first.error));
+    }
     if (!payload || !Array.isArray(payload.items)) {
-      throw new Error("Не удалось получить операции. Проверьте, что сессия Ozon ещё действительна.");
+      const resultType = payload === null ? "null" : typeof payload;
+      const resultKeys = payload && typeof payload === "object"
+        ? Object.keys(payload).join(", ") : "нет";
+      throw new Error("Ответ скрипта Ozon имеет неожиданный формат. Тип: " +
+        resultType + "; поля: " + resultKeys +
+        "; адрес: " + new URL(current.url).pathname +
+        ". Возможно, страница банка ещё не авторизована или API изменился.");
     }
+    await notify("Ozon — операции получены",
+      "Ozon вернул " + payload.items.length + " операций.", "...", "import-data-received");
     return payload;
   } finally {
     await browser.tabs.remove(tab.id).catch(() => {});
