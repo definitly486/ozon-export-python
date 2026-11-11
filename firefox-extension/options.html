@@ -3,24 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ozon Bill — PIN</title>
+<title>Ozon Bill — настройки расширения</title>
 <style>
-body{font:16px system-ui,sans-serif;max-width:520px;margin:48px auto;padding:0 20px;color:#172033}
-h1{font-size:24px}p{line-height:1.5;color:#526174}
+body{font:16px system-ui,sans-serif;max-width:620px;margin:40px auto;padding:0 20px;color:#172033}
+h1{font-size:24px}h2{font-size:19px;margin-top:32px}p{line-height:1.5;color:#526174}
 input{font:24px monospace;letter-spacing:8px;width:150px;padding:12px;border:1px solid #cbd5e1;border-radius:10px}
-button{display:block;margin-top:18px;padding:12px 20px;border:0;border-radius:10px;background:#1264ed;color:white;font-weight:600;cursor:pointer}
+button{margin-top:12px;padding:10px 16px;border:0;border-radius:9px;background:#1264ed;color:white;font-weight:600;cursor:pointer}
 #status{margin-top:14px}
 .warning{background:#fff4e5;padding:12px;border-radius:10px;color:#8a4b08}
+#events{padding:0;list-style:none}
+#events li{padding:11px 12px;margin:8px 0;background:#f1f5f9;border-radius:8px;overflow-wrap:anywhere}
+.event-time{display:block;color:#64748b;font-size:12px;margin-bottom:4px}
+.event-detail{display:block;color:#526174;font-size:13px;margin-top:4px}
+.empty{padding:14px;background:#f1f5f9;border-radius:8px;color:#64748b}
 </style>
 </head>
 <body>
-<h1>PIN-код Ozon Банка</h1>
-<p>Введите постоянный четырёхзначный код. Расширение будет подставлять его в четыре поля на странице входа Ozon Банка.</p>
+<h1>Ozon Bill — настройки расширения</h1>
+<h2>PIN-код Ozon Банка</h2>
+<p>Введите постоянный четырёхзначный код. Расширение будет подставлять его на странице запроса PIN.</p>
 <label for="pin">Код-пароль</label><br><br>
 <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" pattern="[0-9]{4}">
-<button id="save">Сохранить PIN</button>
+<br><button id="save">Сохранить PIN</button>
 <p id="status" role="status"></p>
-<p class="warning"><strong>Важно:</strong> PIN хранится локально в профиле Firefox без шифрования. Человек, получивший доступ к вашему профилю Firefox или компьютеру, потенциально сможет его прочитать. Не используйте эту функцию на общем компьютере.</p>
+<p class="warning"><strong>Важно:</strong> PIN хранится локально в профиле Firefox без шифрования. Не используйте эту функцию на общем компьютере.</p>
+<h2>Журнал работы расширения</h2>
+<p>Здесь сохраняются последние события. Журнал не исчезает при закрытии временной вкладки Ozon.</p>
+<button id="clear-log" type="button">Очистить журнал</button>
+<ul id="events" aria-live="polite"><li class="empty">Загрузка журнала…</li></ul>
 <script src="options.js"></script>
 </body>
 </html>
