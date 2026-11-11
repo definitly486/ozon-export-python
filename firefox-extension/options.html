@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ozon Bill — PIN</title>
+<style>
+body{font:16px system-ui,sans-serif;max-width:520px;margin:48px auto;padding:0 20px;color:#172033}
+h1{font-size:24px}p{line-height:1.5;color:#526174}
+input{font:24px monospace;letter-spacing:8px;width:150px;padding:12px;border:1px solid #cbd5e1;border-radius:10px}
+button{display:block;margin-top:18px;padding:12px 20px;border:0;border-radius:10px;background:#1264ed;color:white;font-weight:600;cursor:pointer}
+#status{margin-top:14px}
+.warning{background:#fff4e5;padding:12px;border-radius:10px;color:#8a4b08}
+</style>
+</head>
+<body>
+<h1>PIN-код Ozon Банка</h1>
+<p>Введите постоянный четырёхзначный код. Расширение будет подставлять его в четыре поля на странице входа Ozon Банка.</p>
+<label for="pin">Код-пароль</label><br><br>
+<input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" pattern="[0-9]{4}">
+<button id="save">Сохранить PIN</button>
+<p id="status" role="status"></p>
+<p class="warning"><strong>Важно:</strong> PIN хранится локально в профиле Firefox без шифрования. Человек, получивший доступ к вашему профилю Firefox или компьютеру, потенциально сможет его прочитать. Не используйте эту функцию на общем компьютере.</p>
+<script src="options.js"></script>
+</body>
+</html>
