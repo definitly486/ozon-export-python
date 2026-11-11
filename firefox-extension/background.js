@@ -29,18 +29,23 @@ async function collectOzonOperations() {
   const items = [];
   let page = 0;
   do {
-    const response = await fetch(ozonApi, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        cursorPagination: { cursor, perPage: 100 },
-        filter: {
-          categories: [], effect: "EFFECT_UNKNOWN", pfmTags: [],
-          accountTokens: [], timeZone: "Europe/Moscow"
-        }
-      })
-    });
+    let response;
+    try {
+      response = await fetch(ozonApi, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          cursorPagination: { cursor, perPage: 100 },
+          filter: {
+            categories: [], effect: "EFFECT_UNKNOWN", pfmTags: [],
+            accountTokens: [], timeZone: "Europe/Moscow"
+          }
+        })
+      });
+    } catch (error) {
+      throw new Error("Не удалось связаться с Ozon API из вкладки. Проверьте соединение, авторизацию и доступность finance.ozon.ru. Подробности: " + (error.message || error));
+    }
     if (!response.ok) throw new Error("Ozon ответил HTTP " + response.status);
     const json = await response.json();
     const group = json?.data?.me?.client?.groupOperationsV3;
@@ -72,11 +77,16 @@ browser.action.onClicked.addListener(async tab => {
     if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Проверьте, что открыт нужный счёт.");
 
     await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…", "...");
-    const response = await fetch(LOCAL_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    let response;
+    try {
+      response = await fetch(LOCAL_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      throw new Error("Не удалось подключиться к Ozon Bill на 127.0.0.1:8765. Запустите приложение командой ./run.sh и проверьте, что оно открывается в браузере по адресу http://127.0.0.1:8765/. Подробности: " + (error.message || error));
+    }
     let result;
     try {
       result = await response.json();
