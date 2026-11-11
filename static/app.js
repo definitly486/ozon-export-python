@@ -18,11 +18,22 @@ function filtered() {
   !($('exclude').checked && isOzon(r))
  );
 }
+function shortPurpose(value) {
+ const full=String(value ?? '').replace(/\\s+/g,' ').trim();
+ // PSB repeats masked account and technical transaction/MCC details in every row.
+ const concise=full
+  .replace(/^\\S+\\s+(?=(Покупка|Безналичное списание|Зачисление)\\b)/i,'')
+  .replace(/^(Покупка|Безналичное списание|Зачисление)\\s+/i,'')
+  .replace(/\\s+\\d{6,}\\.?\\s*(?:MCC\\s*\\d+)?\\s*$/i,'')
+  .replace(/\\s+MCC\\s*\\d+\\s*$/i,'')
+  .trim();
+ return {full, concise:concise || full};
+}
 function render() {
  const list=filtered(); $('count').textContent=`Показано: ${list.length} · Выбрано: ${selected.size} · Всего: ${operations.length}`;
  $('export').disabled=selected.size===0;
  if (!list.length) $('rows').innerHTML=`<tr><td colspan="9" class="empty">${operations.length?'Ничего не найдено':'Операций нет за выбранный период.'}</td></tr>`;
- else $('rows').innerHTML=list.map(({r,i})=>`<tr class="${selected.has(i)?'':'unselected'}"><td><input type="checkbox" data-index="${i}" ${selected.has(i)?'checked':''}></td><td>${esc(r.date_local)}</td><td>${esc(r.source || "Ozon")}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.purpose)}</td><td>${esc(r.category)}</td><td class="num">${r.debit?money(r.debit):''}</td><td class="num">${r.credit?money(r.credit):''}</td><td class="num ${r.amount<0?'negative':'positive'}">${money(r.amount)}</td></tr>`).join('');
+ else $('rows').innerHTML=list.map(({r,i})=>{const purpose=shortPurpose(r.purpose);return `<tr class="${selected.has(i)?'':'unselected'}"><td><input type="checkbox" data-index="${i}" ${selected.has(i)?'checked':''}></td><td title="${esc(r.date_local)}">${esc(r.date_local)}</td><td>${esc(r.source || "Ozon")}</td><td title="${esc(r.name)}"><b>${esc(r.name)}</b></td><td class="purpose-cell" title="${esc(purpose.full)}">${esc(purpose.concise)}</td><td title="${esc(r.category)}">${esc(r.category)}</td><td class="num">${r.debit?money(r.debit):''}</td><td class="num">${r.credit?money(r.credit):''}</td><td class="num ${r.amount<0?'negative':'positive'}">${money(r.amount)}</td></tr>`}).join('');
  const chosen=operations.filter((_,i)=>selected.has(i)); const sum=k=>chosen.reduce((a,r)=>a+Number(r[k]||0),0);
  $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по выбранным (${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:'';
 }
