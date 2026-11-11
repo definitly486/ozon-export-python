@@ -1,22 +1,46 @@
 {
   "manifest_version": 3,
   "name": "Ozon Bill — автоматическая выгрузка",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Получает операции Ozon в фоновой вкладке Firefox и передаёт их в локальный Ozon Bill. Может автоматически заполнять сохранённый PIN.",
-  "permissions": ["activeTab", "scripting", "notifications", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "notifications",
+    "storage"
+  ],
   "host_permissions": [
     "https://finance.ozon.ru/*",
+    "https://*.ozon.ru/*",
+    "https://ozon.ru/*",
     "http://127.0.0.1:8765/*"
   ],
-  "background": { "scripts": ["background.js"] },
-  "content_scripts": [{
-    "matches": ["https://finance.ozon.ru/*"],
-    "js": ["pin-autofill.js"],
-    "run_at": "document_idle"
-  }],
-  "options_ui": { "page": "options.html", "open_in_tab": true },
-  "action": { "default_title": "Загрузить операции Ozon в Ozon Bill" },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://finance.ozon.ru/*"
+      ],
+      "js": [
+        "pin-autofill.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "Загрузить операции Ozon в Ozon Bill"
+  },
   "browser_specific_settings": {
-    "gecko": { "id": "ozon-bill-auto-import@local" }
+    "gecko": {
+      "id": "ozon-bill-auto-import@local"
+    }
   }
 }
