@@ -43,9 +43,12 @@ def import_operations():
     try:
         start = date.fromisoformat(request.args.get("start", ""))
         end = date.fromisoformat(request.args.get("end", ""))
-        if start > end:
-            return jsonify(error="Дата начала позже даты окончания."), 400
+    except ValueError:
+        return jsonify(error="Укажите корректный период."), 400
+    if start > end:
+        return jsonify(error="Дата начала позже даты окончания."), 400
 
+    try:
         sync_summary = sync_operations(payload)
         # Read the complete local history after upsert. This also means a
         # HOLD operation can become CONFIRMED on a later daily import.
@@ -58,10 +61,7 @@ def import_operations():
             sync=sync_summary,
             database=get_stats(),
         )
-    except ValueError as exc:
-        message = str(exc) or "Укажите корректный период."
-        return jsonify(error=message), 400
-    except OzonApiError as exc:
+    except (ValueError, OzonApiError) as exc:
         return jsonify(error=str(exc)), 400
 
 
