@@ -70,7 +70,7 @@ async function reloadPeriodFromDatabase() {
  msg('Обновляю отображение из локальной базы…');
  try {
   const url=`/api/operations?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-  const response=await fetch(url,{signal:dateRefreshController.signal});
+  const response=await fetch(url,{signal:dateRefreshController.signal,cache:'no-store'});
   const data=await response.json();
   if(!response.ok) throw Error(data.error||'Не удалось загрузить операции за выбранный период');
   operations=data.items||[];
@@ -140,11 +140,12 @@ $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(
 
 let lastDatabaseSync = null;
 let databasePollInProgress = false;
+let databasePollTimer = null;
 
 async function refreshDbStatus(stats) {
  try {
   if (!stats) {
-   const response = await fetch('/api/stats');
+   const response = await fetch('/api/stats', {cache:'no-store'});
    if (!response.ok) throw Error('Не удалось прочитать базу');
    stats = await response.json();
   }
@@ -156,8 +157,8 @@ async function refreshDbStatus(stats) {
  }
 }
 
-// The Firefox extension writes directly to SQLite. Poll the lightweight stats
-// endpoint so an already-open dashboard refreshes itself after that import.
+// The extension commits its import to SQLite before returning success.
+// Poll after the initial dashboard load, and compare the DB sync marker.
 async function checkDatabaseForExternalChanges() {
  if (databasePollInProgress || document.hidden) return;
  databasePollInProgress = true;
@@ -165,11 +166,15 @@ async function checkDatabaseForExternalChanges() {
   const response = await fetch('/api/stats', {cache:'no-store'});
   if (!response.ok) return;
   const stats = await response.json();
-  if (stats.last_sync_at && lastDatabaseSync && stats.last_sync_at !== lastDatabaseSync) {
-   lastDatabaseSync = stats.last_sync_at;
+  const currentSync = stats.last_sync_at || null;
+  if (currentSync && lastDatabaseSync && currentSync !== lastDatabaseSync) {
+   lastDatabaseSync = currentSync;
    await reloadPeriodFromDatabase();
-  } else if (stats.last_sync_at && !lastDatabaseSync) {
-   lastDatabaseSync = stats.last_sync_at;
+   // reloadPeriodFromDatabase also updates the status, but retain the latest
+   // marker from the exact poll response to avoid races with another request.
+   lastDatabaseSync = currentSync;
+  } else if (currentSync && !lastDatabaseSync) {
+   lastDatabaseSync = currentSync;
   }
   refreshDbStatus(stats);
  } catch (_) {
@@ -178,19 +183,25 @@ async function checkDatabaseForExternalChanges() {
   databasePollInProgress = false;
  }
 }
-refreshDbStatus();
-setInterval(checkDatabaseForExternalChanges, 3000);
+
+async function initializeDashboard() {
+ // Establish the initial marker before polling. The first table load follows;
+ // any import occurring during startup is included in that load.
+ await refreshDbStatus();
+ await reloadPeriodFromDatabase();
+ if (databasePollTimer) clearInterval(databasePollTimer);
+ databasePollTimer = setInterval(checkDatabaseForExternalChanges, 1500);
+}
 document.addEventListener('visibilitychange', () => {
  if (!document.hidden) checkDatabaseForExternalChanges();
 });
-
 
 const psbBookmarklet = `javascript:(()=>{const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';};const find=t=>{const all=[...document.querySelectorAll('button,a,[role="button"],[tabindex],div,span')].filter(e=>visible(e)&&norm(e.innerText||e.textContent)===t);all.sort((a,b)=>{const score=e=>(e.matches('button,a,[role="button"]')?0:1)+(e.querySelector('*')?1:0);return score(a)-score(b);});return all[0];};const click=e=>(e.closest('button,a,[role="button"]')||e).click();const csv=find('Скачать в CSV');if(csv){click(csv);return;}const open=find('Получить выписку');if(!open){alert('Не найдена кнопка «Получить выписку». Откройте страницу выписки ПСБ и попробуйте ещё раз.');return;}click(open);setTimeout(()=>{const item=find('Скачать в CSV');if(!item){alert('Меню выписки открылось, но пункт «Скачать в CSV» не найден. Откройте меню вручную и нажмите закладку ещё раз.');return;}click(item);},500);})();`;
 $('psbBookmarklet').value=psbBookmarklet;
 $('copyPsbBookmarklet').onclick=()=>copyBookmarkletCode(psbBookmarklet,'psbBookmarklet','copyPsbBookmarklet','ПСБ');
 
-// Load the currently selected period from the saved SQLite database on startup.
-reloadPeriodFromDatabase();
+// Initialize the dashboard before starting external-import polling.
+initializeDashboard();
 
 
 // Appearance switch: presentation only; all existing application logic is preserved.
