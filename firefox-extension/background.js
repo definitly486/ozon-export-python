@@ -4,7 +4,7 @@ let lastPinAutofillAt = 0;
 
 // Content script reports PIN autofill from the temporary Ozon tab.
 // Show this in Firefox notifications so it remains visible after redirects.
-browser.runtime.onMessage.addListener(message => {
+browser.runtime.onMessage.addListener((message, sender) => {
   switch (message?.type) {
     case "ozon-content-script-loaded":
       return notify("Ozon — скрипт расширения запущен",
@@ -37,7 +37,7 @@ browser.runtime.onMessage.addListener(message => {
           "PIN введён в " + count +
           ". Вкладка банка открыта для подтверждения: нажмите кнопку входа на странице Ozon. " +
           "Фрейм: " + String(message.frameUrl || "неизвестен"), "OK");
-        const tabId = message?.tabId;
+        const tabId = sender?.tab?.id;
         if (Number.isInteger(tabId)) {
           await browser.tabs.update(tabId, { active: true }).catch(error =>
             console.warn("Не удалось активировать вкладку Ozon для подтверждения PIN:", error)
