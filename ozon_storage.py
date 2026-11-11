@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,8 +25,18 @@ def _connect(db_path: str | os.PathLike[str] | None = None) -> sqlite3.Connectio
     return connection
 
 
+@contextmanager
+def _connection(db_path: str | os.PathLike[str] | None = None):
+    connection = _connect(db_path)
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
 def init_db(db_path: str | os.PathLike[str] | None = None) -> None:
-    with _connect(db_path) as connection:
+    with _connection(db_path) as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS operations (
@@ -77,7 +88,7 @@ def sync_operations(
     counts = {"new": 0, "updated": 0, "unchanged": 0, "skipped": 0}
 
     init_db(db_path)
-    with _connect(db_path) as connection:
+    with _connection(db_path) as connection:
         for item in items:
             if not isinstance(item, dict):
                 counts["skipped"] += 1
