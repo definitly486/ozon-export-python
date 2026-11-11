@@ -42,6 +42,35 @@ function render() {
  const totalLabel=source==='psb'?'ПСБ':source==='ozon'?'Ozon':'всем банкам';
  $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по ${totalLabel} (выбрано: ${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:`<tr><td colspan="9" class="empty">Нет выбранных операций для текущего фильтра (${totalLabel}).</td></tr>`;
 }
+let dateRefreshTimer = null;
+let dateRefreshController = null;
+async function reloadPeriodFromDatabase() {
+ const start=$('start').value, end=$('end').value;
+ if(!start || !end || start>end) return;
+ if(dateRefreshController) dateRefreshController.abort();
+ dateRefreshController=new AbortController();
+ msg('Обновляю отображение из локальной базы…');
+ try {
+  const url=`/api/operations?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+  const response=await fetch(url,{signal:dateRefreshController.signal});
+  const data=await response.json();
+  if(!response.ok) throw Error(data.error||'Не удалось загрузить операции за выбранный период');
+  operations=data.items||[];
+  selected=new Set(operations.map((_,i)=>i));
+  render();
+  msg(`Период обновлён из локальной базы: ${operations.length} операций. Новые файлы загружать не нужно.`);
+  refreshDbStatus(data.database);
+ } catch(error) {
+  if(error.name!=='AbortError') msg(error.message,true);
+ }
+}
+function schedulePeriodRefresh() {
+ clearTimeout(dateRefreshTimer);
+ dateRefreshTimer=setTimeout(reloadPeriodFromDatabase,250);
+}
+$('start').addEventListener('change',schedulePeriodRefresh);
+$('end').addEventListener('change',schedulePeriodRefresh);
+
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
 $('loadPsb').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('psbFile').files[0];if(!file){$('psbFile').click();msg('Сначала выберите CSV-выписку ПСБ.');return;}const form=new FormData();form.append('file',file);const url=`/api/psb/import?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;msg('Импортирую выписку ПСБ…');$('loadPsb').disabled=true;try{const r=await fetch(url,{method:'POST',body:form});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать выписку ПСБ');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const u=j.sync||{};msg(`ПСБ: добавлено ${u.new||0}, уже было ${u.unchanged||0}, обновлено ${u.updated||0}. В общей истории за период: ${j.count} операций (ПСБ: ${j.summary?.psb||0}).`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('loadPsb').disabled=false;}};
@@ -103,3 +132,6 @@ refreshDbStatus();
 const psbBookmarklet = `javascript:(()=>{const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';};const find=t=>{const all=[...document.querySelectorAll('button,a,[role="button"],[tabindex],div,span')].filter(e=>visible(e)&&norm(e.innerText||e.textContent)===t);all.sort((a,b)=>{const score=e=>(e.matches('button,a,[role="button"]')?0:1)+(e.querySelector('*')?1:0);return score(a)-score(b);});return all[0];};const click=e=>(e.closest('button,a,[role="button"]')||e).click();const csv=find('Скачать в CSV');if(csv){click(csv);return;}const open=find('Получить выписку');if(!open){alert('Не найдена кнопка «Получить выписку». Откройте страницу выписки ПСБ и попробуйте ещё раз.');return;}click(open);setTimeout(()=>{const item=find('Скачать в CSV');if(!item){alert('Меню выписки открылось, но пункт «Скачать в CSV» не найден. Откройте меню вручную и нажмите закладку ещё раз.');return;}click(item);},500);})();`;
 $('psbBookmarklet').value=psbBookmarklet;
 $('copyPsbBookmarklet').onclick=()=>copyBookmarkletCode(psbBookmarklet,'psbBookmarklet','copyPsbBookmarklet','ПСБ');
+
+// Load the currently selected period from the saved SQLite database on startup.
+reloadPeriodFromDatabase();
