@@ -84,3 +84,27 @@ body.design-modern .empty{padding:42px 20px}
  body.design-modern .toolbar{padding:13px}
  body.design-modern .selection{gap:7px}
 }
+
+
+/* Aligned import rows: file pickers share one column, action buttons another. */
+body.design-modern .date-controls{display:flex;align-items:flex-end;gap:18px;margin:22px 0 20px}
+body.design-modern .date-controls label{min-width:145px}
+body.design-modern .date-controls input{width:100%;min-width:145px}
+body.design-modern .import-grid{display:grid;gap:12px;margin-top:4px}
+body.design-modern .import-row{display:grid;grid-template-columns:minmax(280px,1fr) 260px minmax(210px,1fr);align-items:center;gap:18px;padding:14px 16px;border:1px solid #e9eef5;border-radius:13px;background:#fbfcfe}
+body.design-modern .import-row .file-label{min-width:0;gap:8px}
+body.design-modern .import-row input[type=file]{display:block;width:100%;max-width:100%;min-width:0;font:12px inherit;color:#43516a}
+body.design-modern .import-action{width:100%;min-height:42px;white-space:nowrap}
+body.design-modern .import-note{font-size:12px;line-height:1.45;color:#8491a3}
+body.design-modern .psb-import{display:none}
+@media(max-width:900px){
+ body.design-modern .import-row{grid-template-columns:minmax(220px,1fr) 240px;gap:12px}
+ body.design-modern .import-note{grid-column:1/-1;padding-left:2px}
+}
+@media(max-width:600px){
+ body.design-modern .date-controls{align-items:stretch;flex-wrap:wrap}
+ body.design-modern .date-controls label{flex:1;min-width:130px}
+ body.design-modern .import-row{grid-template-columns:1fr;padding:13px}
+ body.design-modern .import-note{grid-column:auto}
+ body.design-modern .import-action{white-space:normal}
+}
