@@ -58,6 +58,12 @@
         setValue(fields[0], ozonPin);
         fields[0].focus();
       }
+      // Report the result outside the temporary tab so the user can see it
+      // even when the Ozon page redirects and the background tab is closed.
+      browser.runtime.sendMessage({
+        type: "ozon-pin-autofilled",
+        fieldCount: fields.length
+      }).catch(() => {});
     } finally { filling = false; }
   }
   let scheduled = false;
