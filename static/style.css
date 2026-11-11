@@ -9,3 +9,8 @@
 .bookmarklet-box button:active:not(:disabled){transform:translateY(1px);background:#ffe2d4}
 .bookmarklet-box button:focus-visible{outline:3px solid #ee8a61;outline-offset:3px}
 .bookmarklet-box button:disabled{opacity:.65;cursor:wait}
+
+.source-filter{display:flex;align-items:center;gap:8px;font-size:13px;white-space:nowrap}
+.source-filter select{border:1px solid #d9dee7;border-radius:8px;padding:9px 30px 9px 11px;background:#fff;color:inherit;font:inherit;cursor:pointer}
+.source-filter select:focus-visible{outline:3px solid #ee8a61;outline-offset:2px}
+@media(max-width:700px){.source-filter{width:100%;justify-content:space-between}.source-filter select{flex:1;max-width:220px}}
