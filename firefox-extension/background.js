@@ -1,6 +1,15 @@
 const LOCAL_API = "http://127.0.0.1:8765/api/ozon/auto-sync";
 const NOTIFICATION_ID = "ozon-bill-sync";
 
+// Content script reports PIN autofill from the temporary Ozon tab.
+// Show this in Firefox notifications so it remains visible after redirects.
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (message?.type !== "ozon-pin-autofilled") return;
+  const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
+  return notify("Ozon — PIN подставлен",
+    "Сохранённый PIN автоматически введён в " + count + ". Ожидаю завершения входа…", "OK");
+});
+
 async function notify(title, message, badge = "!") {
   // Badge is visible on the extension icon even if desktop notifications are disabled.
   try {
