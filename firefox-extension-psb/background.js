@@ -4,76 +4,52 @@ const LOCAL_API = "http://127.0.0.1:8765/api/psb/auto-sync";
 const NOTIFICATION_ID = "ozon-bill-psb-sync";
 const KEEPER_TAB_KEY = "psbKeeperTabId";
 const KEEPER_URL_KEY = "psbKeeperUrl";
-const SYNC_ACTIVE_KEY = "psbSyncActive";
 let running = false;
-let restoringKeeper = false;
-let recoveryTabId = null;
-let recoveryPromise = null;
-let recoveryAttempts = 0;
 
-// Storage is optional for the import itself. If Firefox has not granted the
-// storage API (for example, an old temporary add-on build is still loaded),
-// continue importing instead of aborting the bank operation.
 function hasLocalStorage() {
-  return typeof browser !== "undefined" &&
-    browser.storage && browser.storage.local;
+  return typeof browser !== "undefined" && browser.storage && browser.storage.local;
 }
-
 async function storageGet(keys) {
   if (!hasLocalStorage()) return {};
   return browser.storage.local.get(keys);
 }
-
 async function storageSet(values) {
   if (!hasLocalStorage()) return false;
   await browser.storage.local.set(values);
   return true;
 }
-
 async function rememberKeeperTab(tab) {
   if (!tab || !tab.id || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
-  await storageSet({
-    [KEEPER_TAB_KEY]: tab.id,
-    [KEEPER_URL_KEY]: tab.url
-  });
+  await storageSet({ [KEEPER_TAB_KEY]: tab.id, [KEEPER_URL_KEY]: tab.url });
 }
-
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (!hasLocalStorage()) return;
-  if (changeInfo.url && tab.url && tab.url.startsWith("https://ib.psbank.ru/")) {
-    storageGet(KEEPER_TAB_KEY).then(data => {
-      if (data[KEEPER_TAB_KEY] === tabId) rememberKeeperTab(tab).catch(() => {});
-    }).catch(() => {});
-  }
+  if (!hasLocalStorage() || !changeInfo.url || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
+  storageGet(KEEPER_TAB_KEY).then(data => {
+    if (data[KEEPER_TAB_KEY] === tabId) rememberKeeperTab(tab).catch(() => {});
+  }).catch(() => {});
 });
 
-browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
-  if (!hasLocalStorage() || removeInfo.isWindowClosing || restoringKeeper) return;
-  // Assign the promise immediately so the import's finally block can wait for
-  // restoration instead of racing the asynchronous tabs.create call.
-  recoveryPromise = (async () => {
-    try {
-      const saved = await storageGet([KEEPER_TAB_KEY, KEEPER_URL_KEY, SYNC_ACTIVE_KEY]);
-      if (!saved[SYNC_ACTIVE_KEY] || saved[KEEPER_TAB_KEY] !== tabId || !saved[KEEPER_URL_KEY]) return;
-      restoringKeeper = true;
-      const restored = await browser.tabs.create({
-        url: saved[KEEPER_URL_KEY],
-        active: false,
-        pinned: true
-      });
-      recoveryTabId = restored.id;
-      await storageSet({ [KEEPER_TAB_KEY]: restored.id });
-      await waitForTab(restored.id);
-      console.info("PSB tab was closed during import; background tab restored.");
-    } catch (error) {
-      console.warn("Could not restore PSB session tab:", error);
-    } finally {
-      restoringKeeper = false;
+// Move the existing authenticated tab into a minimized window without reloading it.
+async function keepBankTabInBackgroundWindow(tab) {
+  if (!tab || !tab.id || !browser.windows) return tab;
+  const currentWindow = await browser.windows.get(tab.windowId);
+  if (currentWindow && currentWindow.state === "minimized") return tab;
+  const backgroundWindow = await browser.windows.create({
+    url: "about:blank", focused: false, state: "minimized", type: "normal"
+  });
+  try {
+    const moved = await browser.tabs.move(tab.id, { windowId: backgroundWindow.id, index: 0 });
+    const movedTab = Array.isArray(moved) ? moved[0] : moved;
+    const blankTabs = await browser.tabs.query({ windowId: backgroundWindow.id });
+    for (const blank of blankTabs) {
+      if (blank.id !== tab.id) await browser.tabs.remove(blank.id).catch(() => {});
     }
-  })();
-  recoveryPromise.catch(() => {});
-});
-
+    return await browser.tabs.get(movedTab.id);
+  } catch (error) {
+    await browser.windows.remove(backgroundWindow.id).catch(() => {});
+    throw new Error("Не удалось перенести исходную вкладку ПСБ в свёрнутое окно. Вкладка не закрывалась. " + (error.message || error));
+  }
+}
 async function notify(title, message, badge = "...") {
   try {
     await browser.action.setBadgeBackgroundColor({
@@ -306,7 +282,7 @@ async function capturePsbCsv() {
   }
 }
 
-async function importPsb(preferredTabId = null) {
+async function importPsb() {
   if (running) return;
   running = true;
   await storageSet({ [SYNC_ACTIVE_KEY]: true });
@@ -327,21 +303,20 @@ async function importPsb(preferredTabId = null) {
     const psbTabs = await browser.tabs.query({ url: "https://ib.psbank.ru/*" });
     const keeperData = await storageGet(KEEPER_TAB_KEY);
     const savedKeeperTabId = keeperData[KEEPER_TAB_KEY];
-    const bankTab = (preferredTabId && psbTabs.find(tab => tab.id === preferredTabId)) ||
-      psbTabs.find(tab => tab.active) ||
-      (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
-      psbTabs[0];
+    const bankTab = (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
+      psbTabs.find(tab => tab.active) || psbTabs[0];
     if (!bankTab) {
       throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
-    tabId = bankTab.id;
-    await rememberKeeperTab(bankTab);
+    const backgroundTab = await keepBankTabInBackgroundWindow(bankTab);
+    tabId = backgroundTab.id;
+    await rememberKeeperTab(backgroundTab);
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
       bankTab.url.includes("/about/statement");
     if (!alreadyOnStatement) {
-      await notify("ПСБ — открываю выписку", "Перехожу к выписке в той же авторизованной вкладке. Новая вкладка не создаётся.");
+      await notify("ПСБ — открываю выписку", "Исходная вкладка перенесена в свёрнутое окно. Используется та же авторизованная вкладка.");
       await browser.tabs.update(tabId, { url: STATEMENT_URL });
       await waitForTab(tabId);
       const currentTab = await browser.tabs.get(tabId);
@@ -382,7 +357,6 @@ async function importPsb(preferredTabId = null) {
 
     const sync = payload.sync || {};
     await storageSet({ [SYNC_ACTIVE_KEY]: false });
-    recoveryAttempts = 0;
     await notify("ПСБ — импорт завершён",
       "Добавлено: " + (sync.new || 0) +
       " · Обновлено: " + (sync.updated || 0) +
@@ -392,22 +366,7 @@ async function importPsb(preferredTabId = null) {
     await notify("ПСБ — ошибка импорта", error.message || String(error), "!");
     console.error("PSB import failed:", error);
   } finally {
-    // If the user closed the working tab mid-import, resume once the replacement
-    // tab has loaded. Limit retries to avoid an endless loop if tabs keep closing.
-    if (recoveryPromise) {
-      await recoveryPromise.catch(() => {});
-      recoveryPromise = null;
-    }
-    const nextTabId = recoveryTabId;
-    recoveryTabId = null;
     running = false;
-    if (nextTabId && recoveryAttempts < 3) {
-      recoveryAttempts += 1;
-      await notify("ПСБ — продолжаю в фоне", "Вкладка была закрыта. Продолжаю импорт в восстановленной вкладке.");
-      importPsb(nextTabId);
-    } else {
-      await storageSet({ [SYNC_ACTIVE_KEY]: false });
-    }
   }
 }
 
