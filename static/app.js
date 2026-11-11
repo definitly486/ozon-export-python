@@ -44,3 +44,8 @@ async function refreshDbStatus(stats) {
  }
 }
 refreshDbStatus();
+
+
+const psbBookmarklet = `javascript:(()=>{const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';};const find=t=>{const all=[...document.querySelectorAll('button,a,[role="button"],[tabindex],div,span')].filter(e=>visible(e)&&norm(e.innerText||e.textContent)===t);all.sort((a,b)=>{const score=e=>(e.matches('button,a,[role="button"]')?0:1)+(e.querySelector('*')?1:0);return score(a)-score(b);});return all[0];};const click=e=>(e.closest('button,a,[role="button"]')||e).click();const csv=find('Скачать в CSV');if(csv){click(csv);return;}const open=find('Получить выписку');if(!open){alert('Не найдена кнопка «Получить выписку». Откройте страницу выписки ПСБ и попробуйте ещё раз.');return;}click(open);setTimeout(()=>{const item=find('Скачать в CSV');if(!item){alert('Меню выписки открылось, но пункт «Скачать в CSV» не найден. Откройте меню вручную и нажмите закладку ещё раз.');return;}click(item);},500);})();`;
+$('psbBookmarklet').value=psbBookmarklet;
+$('copyPsbBookmarklet').onclick=async()=>{try{await navigator.clipboard.writeText(psbBookmarklet);msg('Код закладки ПСБ скопирован. Создайте новую закладку Firefox и вставьте его в поле «Адрес».');}catch(e){$('psbBookmarklet').focus();$('psbBookmarklet').select();msg('Выделил код закладки ПСБ — скопируйте его вручную сочетанием Ctrl+C.');}};
