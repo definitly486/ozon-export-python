@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ozon Bill — автоматическая выгрузка",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Получает операции Ozon в фоновой вкладке Firefox и передаёт их в локальный Ozon Bill. Может автоматически заполнять сохранённый PIN.",
   "permissions": [
     "activeTab",
