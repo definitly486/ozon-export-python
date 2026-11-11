@@ -223,12 +223,19 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
 }
 
 async function getOperationsFromBackgroundTab() {
-  const tab = await browser.tabs.create({
+  // Reuse an already-open bank tab when possible. This preserves the live
+  // bank-page context and any tab-scoped authorization state established by
+  // the user during manual sign-in.
+  const financeTabs = await browser.tabs.query({ url: ["https://finance.ozon.ru/*"] });
+  financeTabs.sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)));
+  const existingTab = financeTabs.find(tab => tab.status === "complete") || financeTabs[0] || null;
+  const reusedTab = Boolean(existingTab);
+  const tab = existingTab || await browser.tabs.create({
     url: "https://finance.ozon.ru/lk",
     active: false
   });
   try {
-    await waitForTabComplete(tab.id);
+    if (tab.status !== "complete") await waitForTabComplete(tab.id);
     await notify("Ozon — страница загружена",
       "Фоновая вкладка загружена. Проверяю адрес и состояние авторизации…", "...", "import-ozon-loaded");
     await waitForFinanceReturn(tab.id);
@@ -273,7 +280,9 @@ async function getOperationsFromBackgroundTab() {
       "Ozon вернул " + payload.items.length + " операций.", "...", "import-data-received");
     return payload;
   } finally {
-    await browser.tabs.remove(tab.id).catch(() => {});
+    // Only close tabs created for this import. A pre-existing authenticated
+    // bank tab belongs to the user and must remain open.
+    if (!reusedTab) await browser.tabs.remove(tab.id).catch(() => {});
   }
 }
 
