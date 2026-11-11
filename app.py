@@ -92,6 +92,25 @@ def database_stats():
     return jsonify(stats)
 
 
+@app.post("/api/ozon/auto-sync")
+def auto_sync_ozon():
+    """Receive operation JSON from the Firefox extension running locally."""
+    payload = request.get_json(silent=True)
+    if payload is None:
+        return jsonify(error="Firefox не передал корректный JSON."), 400
+    try:
+        start, end = _requested_period()
+        sync_summary = sync_operations(payload)
+        items, summary = _combined_transactions(start, end)
+        return jsonify(
+            ok=True, items=items, count=len(items), summary=summary,
+            sync=sync_summary,
+            message=f"Ozon обновлён: новых {sync_summary.get('new', 0)}, изменённых {sync_summary.get('updated', 0)}.",
+        )
+    except (ValueError, OzonApiError) as exc:
+        return jsonify(error=str(exc)), 400
+
+
 @app.post("/api/sync")
 @app.post("/api/import")
 def import_operations():
