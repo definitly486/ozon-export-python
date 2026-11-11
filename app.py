@@ -103,9 +103,10 @@ def auto_sync_ozon():
         return jsonify(
             ok=True,
             sync=sync_summary,
+            database_total=get_stats()["total"],
             message=f"Ozon обновлён: новых {sync_summary.get('new', 0)}, изменённых {sync_summary.get('updated', 0)}, без изменений {sync_summary.get('unchanged', 0)}.",
         )
-    except OzonApiError as exc:
+    except (OzonApiError, ValueError) as exc:
         return jsonify(error=str(exc)), 400
 
 
