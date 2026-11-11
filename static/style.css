@@ -30,3 +30,57 @@
 .table-wrap td:nth-child(4){white-space:normal;overflow-wrap:anywhere}
 .table-wrap td.purpose-cell{white-space:nowrap;text-overflow:ellipsis}
 @media(max-width:1100px){.table-wrap table{min-width:1050px}}
+
+
+/* Modern visual theme — presentation only; existing controls and IDs stay unchanged. */
+.header-tools{display:flex;align-items:center;gap:10px}
+.design-toggle{font-size:12px;font-weight:750;white-space:nowrap}
+body.design-modern{background:#f2f5fa;color:#172033;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body.design-modern .container{max-width:1580px;margin:26px auto;padding:0 26px}
+body.design-modern header{padding:25px 28px;margin:0 0 20px;border-radius:20px;background:linear-gradient(120deg,#17233d 0%,#263c60 65%,#394f70 100%);color:#fff;box-shadow:0 14px 34px #17233d24}
+body.design-modern .eyebrow{color:#ffb18e;letter-spacing:2.4px}
+body.design-modern h1{font-size:clamp(25px,3vw,36px);letter-spacing:-.8px;margin:8px 0}
+body.design-modern header .muted{color:#c5d0e0}
+body.design-modern .pill{background:#ffffff16;border-color:#ffffff30;color:#eaf0f8}
+body.design-modern .design-toggle{background:#fff;color:#1d2c46;border:0;border-radius:999px;padding:11px 16px;box-shadow:0 3px 12px #0002}
+body.design-modern .panel{border:1px solid #e4eaf2;border-radius:18px;box-shadow:0 8px 28px #1e35500b}
+body.design-modern .controls{padding:24px}
+body.design-modern .actions{padding-bottom:17px;border-bottom:1px solid #edf1f6}
+body.design-modern button{border:1px solid #dce4ee;border-radius:10px;background:#fff;color:#27364d;transition:transform .15s,box-shadow .15s,border-color .15s}
+body.design-modern button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 14px #1c355018;border-color:#b8c7da}
+body.design-modern button.primary{background:linear-gradient(135deg,#f36b37,#e84e25);border-color:#e95a2e;color:#fff;box-shadow:0 5px 12px #e85b2525}
+body.design-modern input[type=date],body.design-modern input[type=search],body.design-modern .source-filter select,body.design-modern .bookmarklet-box textarea{border:1px solid #dce4ee;border-radius:10px;background:#fbfcfe;color:#172033;outline:none}
+body.design-modern input:focus,body.design-modern select:focus,body.design-modern textarea:focus{border-color:#ed825e;box-shadow:0 0 0 3px #ed825e20}
+body.design-modern .dates{gap:14px 18px}
+body.design-modern .dates label,body.design-modern .file-label{color:#34445c}
+body.design-modern .psb-import{border-top:1px solid #edf1f6}
+body.design-modern .bookmarklet-box{background:linear-gradient(135deg,#fff9f5,#fff);border:1px solid #f3d8cb;border-radius:14px;padding:18px}
+body.design-modern .bookmarklet-box b{color:#9b482b}
+body.design-modern .bookmarklet-box ol{color:#4b586b}
+body.design-modern .hint,body.design-modern .muted{color:#78869a}
+body.design-modern .table-panel{border-radius:18px}
+body.design-modern .toolbar{padding:18px 20px;background:#fff;gap:12px}
+body.design-modern .toolbar input[type=search]{min-width:260px}
+body.design-modern .selection span{color:#52627a;font-weight:650}
+body.design-modern .table-wrap{max-height:68vh}
+body.design-modern table{font-size:13px}
+body.design-modern th{background:#f4f7fb;color:#68778d;font-size:10px;letter-spacing:.8px;padding-top:15px;padding-bottom:15px}
+body.design-modern td{border-bottom:1px solid #edf1f6;padding-top:13px;padding-bottom:13px}
+body.design-modern tbody tr:hover{background:#f8faff}
+body.design-modern tbody tr.unselected{opacity:.42}
+body.design-modern tbody td:nth-child(4) b{color:#202f48}
+body.design-modern tfoot td{background:#fff4ed;border-top:2px solid #f2c3ae;color:#713d2a}
+body.design-modern .message{padding:0 4px;font-weight:600}
+body.design-modern footer{color:#8793a4}
+body.design-modern .empty{padding:42px 20px}
+@media(max-width:700px){
+ body.design-modern .container{margin:12px auto;padding:0 10px}
+ body.design-modern header{padding:20px 16px;border-radius:15px;gap:12px;flex-direction:column}
+ body.design-modern .header-tools{width:100%;justify-content:space-between}
+ body.design-modern .controls{padding:16px}
+ body.design-modern .actions{align-items:flex-start;flex-direction:column}
+ body.design-modern .dates label,body.design-modern .file-label{width:100%}
+ body.design-modern input[type=date],body.design-modern .file-label input{width:100%;max-width:none}
+ body.design-modern .toolbar{padding:13px}
+ body.design-modern .selection{gap:7px}
+}
