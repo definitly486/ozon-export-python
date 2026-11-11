@@ -14,6 +14,7 @@ from psb_storage import get_all_psb_operations, get_psb_stats, sync_psb_operatio
 
 app = Flask(__name__)
 OZON_URL = "https://finance.ozon.ru/lk"
+PSB_URL = "https://ib.psbank.ru/login"
 
 
 @app.get("/")
@@ -29,6 +30,17 @@ def connect():
         ok=True,
         opened=bool(opened),
         message="Откройте Ozon Банк в обычном Firefox. После входа запустите закладку-экспорт из инструкции ниже.",
+    )
+
+
+@app.post("/api/connect/psb")
+def connect_psb():
+    # Open the PSB retail internet-bank login in the user's regular browser.
+    opened = webbrowser.open(PSB_URL)
+    return jsonify(
+        ok=True,
+        opened=bool(opened),
+        message="Откройте ПСБ в обычном Firefox и войдите в личный кабинет. Затем откройте страницу выписки и выберите период.",
     )
 
 
