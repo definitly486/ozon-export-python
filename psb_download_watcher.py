@@ -42,7 +42,7 @@ def _is_psb_csv(path: Path) -> bool:
             return False
         with path.open("rb") as stream:
             sample = stream.read(256 * 1024)
-        return b"\xd0\x94\xd0\xb0\xd1\x82\xd0\xb0" in sample or b"Дата" in sample.decode("utf-8-sig", errors="ignore")
+        return "Дата и время транзакции" in sample.decode("utf-8-sig", errors="ignore")
     except OSError:
         return False
 
@@ -91,9 +91,10 @@ def watch_psb_downloads(stop_event: threading.Event | None = None) -> None:
             present.add(resolved)
             signature = (stat.st_size, stat.st_mtime_ns)
             previous = known.get(resolved)
-            if previous == signature:
+            if previous != signature:
+                known[resolved] = signature
+                stable_counts[resolved] = 1
                 continue
-            known[resolved] = signature
             stable_counts[resolved] = stable_counts.get(resolved, 0) + 1
             if stable_counts[resolved] < STABLE_POLLS:
                 continue
