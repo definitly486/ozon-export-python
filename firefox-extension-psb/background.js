@@ -2,33 +2,11 @@ const STATEMENT_URL = "https://ib.psbank.ru/lk/products/cards/account/2680291440
 const LOCAL_HEALTH = "http://127.0.0.1:8765/api/health";
 const LOCAL_API = "http://127.0.0.1:8765/api/psb/auto-sync";
 const NOTIFICATION_ID = "ozon-bill-psb-sync";
-const KEEPER_TAB_KEY = "psbKeeperTabId";
-const KEEPER_URL_KEY = "psbKeeperUrl";
 let running = false;
 
 function hasLocalStorage() {
   return typeof browser !== "undefined" && browser.storage && browser.storage.local;
 }
-async function storageGet(keys) {
-  if (!hasLocalStorage()) return {};
-  return browser.storage.local.get(keys);
-}
-async function storageSet(values) {
-  if (!hasLocalStorage()) return false;
-  await browser.storage.local.set(values);
-  return true;
-}
-async function rememberKeeperTab(tab) {
-  if (!tab || !tab.id || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
-  await storageSet({ [KEEPER_TAB_KEY]: tab.id, [KEEPER_URL_KEY]: tab.url });
-}
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (!hasLocalStorage() || !changeInfo.url || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
-  storageGet(KEEPER_TAB_KEY).then(data => {
-    if (data[KEEPER_TAB_KEY] === tabId) rememberKeeperTab(tab).catch(() => {});
-  }).catch(() => {});
-});
-
 async function notify(title, message, badge = "...") {
   try {
     await browser.action.setBadgeBackgroundColor({
@@ -219,7 +197,10 @@ async function capturePsbCsv() {
       const endIso = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"),
         String(today.getDate()).padStart(2,"0")].join("-");
       const start = dateInputs[0], end = dateInputs[1];
-      const startValue = start.type === "date" ? "2000-01-01" : "01.01.2000";
+      const minDate = start.getAttribute("min") || start.getAttribute("data-min-date") || "";
+      const validMinDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(minDate) ? minDate : "";
+      const startValue = start.type === "date" ? (validMinDate || "2000-01-01") :
+        (validMinDate ? validMinDate.split("-").reverse().join(".") : "01.01.2000");
       const endValue = end.type === "date" ? endIso :
         (String(end.placeholder || end.value || "").includes("-") ? endIso :
           [String(today.getDate()).padStart(2,"0"), String(today.getMonth()+1).padStart(2,"0"), today.getFullYear()].join("."));
@@ -241,7 +222,7 @@ async function capturePsbCsv() {
 
   try {
     const periodMode = await chooseFullPeriod();
-    console.info("PSB full-history period selected:", periodMode);
+    console.info("PSB maximum available history period selected:", periodMode);
     let item = findExact("Скачать в CSV");
     if (!item) {
       const menu = findExact("Получить выписку");
@@ -278,32 +259,21 @@ async function importPsb() {
     // Reuse the already authenticated PSB tab. The normal landing page after
     // login is /lk/products/summary; navigate that SAME tab to the statement.
     // Do not create a new tab: PSB may bind authentication state to the tab.
-    const psbTabs = await browser.tabs.query({ url: "https://ib.psbank.ru/*" });
-    const keeperData = await storageGet(KEEPER_TAB_KEY);
-    const savedKeeperTabId = keeperData[KEEPER_TAB_KEY];
-    // The user normally clicks the extension while viewing the freshly
-    // authenticated PSB tab. Prefer that active tab over a previously saved
-    // keeper ID, which may now point to an expired login session.
-    const bankTab = psbTabs.find(tab => tab.active) ||
-      (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
-      psbTabs[0];
+    const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const bankTab = activeTabs.find(tab => tab.url && tab.url.startsWith("https://ib.psbank.ru/"));
     if (!bankTab) {
-      throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
+      throw new Error("Откройте ПСБ в текущей активной вкладке, войдите в аккаунт и нажмите значок расширения ещё раз.");
     }
-    // Keep the authenticated tab in its original window: PSB may bind its session to this tab/window context.
-    // tabs.update navigates it in the background and does not focus it.
+    // Work visibly in the active tab for now; no background or keeper tabs.
     tabId = bankTab.id;
-    await rememberKeeperTab(bankTab);
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
       bankTab.url.includes("/about/statement");
     if (!alreadyOnStatement) {
       await notify("ПСБ — открываю выписку", "Используется исходная авторизованная вкладка без переноса в другое окно.");
-      await browser.tabs.update(tabId, { url: STATEMENT_URL });
+      await browser.tabs.update(tabId, { url: STATEMENT_URL, active: true });
       await waitForTab(tabId);
-      const currentTab = await browser.tabs.get(tabId);
-      await rememberKeeperTab(currentTab);
     }
 
     await notify("ПСБ — получаю выписку", "Получаю CSV в существующей вкладке ПСБ.");
