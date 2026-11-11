@@ -4,7 +4,7 @@ import csv
 import hashlib
 import io
 import re
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -117,7 +117,13 @@ def convert_psb_operations(
             amount = Decimal(str(item["amount"]))
         except (KeyError, ValueError, InvalidOperation):
             continue
-        if not start_date <= operation_time.date() <= end_date:
+        # PSB statement periods are based on the processing date. A purchase
+        # made before the selected period can still be posted inside it.
+        try:
+            statement_date = date.fromisoformat(str(item.get("processing_date") or operation_time.date().isoformat()))
+        except ValueError:
+            statement_date = operation_time.date()
+        if not start_date <= statement_date <= end_date:
             continue
         base = abs(amount)
         details = str(item.get("details") or "")
