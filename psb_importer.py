@@ -38,20 +38,11 @@ def _money_text(value: Decimal) -> str:
 
 
 def _merchant(details: str) -> str:
-    value = re.sub(r"^\\s*\\S+\\s+", "", details or "")
-    value = re.sub(r"^(Покупка|Безналичное списание|Зачисление)\\s+", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"\\s*MCC\\s*\\d+\\s*$", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"\\s+\\d{6,}\\.?\\s*$", "", value)
-    return value.strip() or (details or "").strip()
-
-def _merchant(details: str) -> str:
     value = re.sub(r"^\s*\S+\s+", "", details or "")
     value = re.sub(r"^(Покупка|Безналичное списание|Зачисление)\s+", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"\s+\d{6,}\.?\s*$", "", value)
     value = re.sub(r"\s*MCC\s*\d+\s*$", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\s+\d{6,}\.?\s*$", "", value)
     return value.strip() or (details or "").strip()
-
-
 def parse_psb_csv(content: str | bytes) -> list[dict[str, Any]]:
     """Parse the semicolon-delimited CSV exported by PSB personal banking."""
     if isinstance(content, bytes):
