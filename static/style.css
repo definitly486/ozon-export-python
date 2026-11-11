@@ -14,3 +14,19 @@
 .source-filter select{border:1px solid #d9dee7;border-radius:8px;padding:9px 30px 9px 11px;background:#fff;color:inherit;font:inherit;cursor:pointer}
 .source-filter select:focus-visible{outline:3px solid #ee8a61;outline-offset:2px}
 @media(max-width:700px){.source-filter{width:100%;justify-content:space-between}.source-filter select{flex:1;max-width:220px}}
+
+/* Compact transaction table so all financial columns fit on screen */
+.table-wrap table{width:100%;table-layout:fixed}
+.table-wrap th,.table-wrap td{overflow:hidden;text-overflow:ellipsis}
+.table-wrap th:nth-child(1),.table-wrap td:nth-child(1){width:38px;text-align:center;padding-left:7px;padding-right:7px}
+.table-wrap th:nth-child(2),.table-wrap td:nth-child(2){width:145px}
+.table-wrap th:nth-child(3),.table-wrap td:nth-child(3){width:65px}
+.table-wrap th:nth-child(4),.table-wrap td:nth-child(4){width:17%}
+.table-wrap th:nth-child(5),.table-wrap td:nth-child(5){width:23%}
+.table-wrap th:nth-child(6),.table-wrap td:nth-child(6){width:105px}
+.table-wrap th:nth-child(7),.table-wrap td:nth-child(7),
+.table-wrap th:nth-child(8),.table-wrap td:nth-child(8),
+.table-wrap th:nth-child(9),.table-wrap td:nth-child(9){width:105px}
+.table-wrap td:nth-child(4){white-space:normal;overflow-wrap:anywhere}
+.table-wrap td.purpose-cell{white-space:nowrap;text-overflow:ellipsis}
+@media(max-width:1100px){.table-wrap table{min-width:1050px}}
