@@ -230,6 +230,14 @@ async function getOperationsFromBackgroundTab() {
   financeTabs.sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)));
   const existingTab = financeTabs.find(tab => tab.status === "complete") || financeTabs[0] || null;
   const reusedTab = Boolean(existingTab);
+  await notify(
+    reusedTab ? "Ozon — использую открытую вкладку банка" : "Ozon — открываю банковскую вкладку",
+    reusedTab
+      ? "Использую уже открытую вкладку finance.ozon.ru, чтобы сохранить текущую авторизацию."
+      : "Открываю отдельную фоновую вкладку. Если потребуется банковский вход, сначала войдите в обычной вкладке.",
+    "...",
+    reusedTab ? "import-bank-tab-reused" : "import-bank-tab-created"
+  );
   const tab = existingTab || await browser.tabs.create({
     url: "https://finance.ozon.ru/lk",
     active: false
