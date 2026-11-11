@@ -99,15 +99,13 @@ def auto_sync_ozon():
     if payload is None:
         return jsonify(error="Firefox не передал корректный JSON."), 400
     try:
-        start, end = _requested_period()
         sync_summary = sync_operations(payload)
-        items, summary = _combined_transactions(start, end)
         return jsonify(
-            ok=True, items=items, count=len(items), summary=summary,
+            ok=True,
             sync=sync_summary,
-            message=f"Ozon обновлён: новых {sync_summary.get('new', 0)}, изменённых {sync_summary.get('updated', 0)}.",
+            message=f"Ozon обновлён: новых {sync_summary.get('new', 0)}, изменённых {sync_summary.get('updated', 0)}, без изменений {sync_summary.get('unchanged', 0)}.",
         )
-    except (ValueError, OzonApiError) as exc:
+    except OzonApiError as exc:
         return jsonify(error=str(exc)), 400
 
 
