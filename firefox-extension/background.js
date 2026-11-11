@@ -96,9 +96,44 @@ async function collectOzonOperations() {
       throw new Error("Не удалось связаться с Ozon API из вкладки. Проверьте соединение, авторизацию и доступность finance.ozon.ru. Подробности: " + (error.message || error));
     }
     if (!response.ok) throw new Error("Ozon ответил HTTP " + response.status);
-    const json = await response.json();
+    let json;
+    const contentType = response.headers.get("content-type") || "не указан";
+    try {
+      json = await response.json();
+    } catch (error) {
+      throw new Error("Ozon API вернул не JSON (HTTP " + response.status +
+        ", Content-Type: " + contentType + "). Возможно, вместо данных пришла страница входа или сообщение об ошибке.");
+    }
+
     const group = json?.data?.me?.client?.groupOperationsV3;
-    if (!group || !Array.isArray(group.items)) throw new Error("Ozon вернул неизвестный формат операций");
+    if (!group || !Array.isArray(group.items)) {
+      // Log structure only: never include operation values, account details,
+      // cookies, tokens, or raw response bodies in diagnostics.
+      const shape = [];
+      const inspectShape = (value, path, depth) => {
+        if (depth > 4 || value === null || typeof value !== "object") return;
+        if (Array.isArray(value)) {
+          shape.push(path + ": array(" + value.length + ")");
+          if (value.length) inspectShape(value[0], path + "[0]", depth + 1);
+          return;
+        }
+        const keys = Object.keys(value).slice(0, 30);
+        shape.push(path + ": {" + keys.join(", ") + "}");
+        for (const key of keys.slice(0, 12)) {
+          const child = value[key];
+          if (child && typeof child === "object") inspectShape(child, path + "." + key, depth + 1);
+        }
+      };
+      inspectShape(json, "response", 0);
+      const apiErrors = Array.isArray(json?.errors)
+        ? " GraphQL errors: " + json.errors.slice(0, 3).map(error =>
+            String(error?.message || error?.extensions?.code || "ошибка без описания").slice(0, 120)
+          ).join(" | ")
+        : "";
+      throw new Error("Ozon вернул неизвестный формат операций. HTTP " + response.status +
+        "; Content-Type: " + contentType + "; структура: " + shape.slice(0, 18).join("; ") +
+        apiErrors);
+    }
     items.push(...group.items);
     cursor = group.cursors?.next ?? null;
     page += 1;
