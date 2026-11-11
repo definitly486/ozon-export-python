@@ -153,11 +153,11 @@ browser.action.onClicked.addListener(async () => {
       ? "Импорт завершён успешно."
       : "Импорт завершён: новых изменений нет, данные уже актуальны.";
     const details = "Получено: " + payload.items.length +
-      "\\nДобавлено: " + added + " · Обновлено: " + updated +
-      "\\nБез изменений: " + unchanged +
-      (skipped ? "\\nПропущено: " + skipped : "") +
-      "\\nВсего в базе: " + total;
-    await notify("Ozon Bill — успешно", status + "\\n" + details, "OK");
+      "\nДобавлено: " + added + " · Обновлено: " + updated +
+      "\nБез изменений: " + unchanged +
+      (skipped ? "\nПропущено: " + skipped : "") +
+      "\nВсего в базе: " + total;
+    await notify("Ozon Bill — успешно", status + "\n" + details, "OK");
   } catch (error) {
     await notify("Ozon Bill — ошибка импорта", String(error.message || error).slice(0, 450), "!");
     console.error("Ozon Bill import failed:", error);
