@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Ozon Bill — автоматическая выгрузка",
+  "version": "1.0.0",
+  "description": "Получает операции Ozon из авторизованной вкладки Firefox и передаёт их в локальный Ozon Bill.",
+  "permissions": ["activeTab", "scripting", "notifications"],
+  "host_permissions": [
+    "https://finance.ozon.ru/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": { "scripts": ["background.js"] },
+  "action": { "default_title": "Загрузить операции Ozon в Ozon Bill" },
+  "browser_specific_settings": {
+    "gecko": { "id": "ozon-bill-auto-import@local" }
+  }
+}
