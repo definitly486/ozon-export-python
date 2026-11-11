@@ -8,6 +8,7 @@ const SYNC_ACTIVE_KEY = "psbSyncActive";
 let running = false;
 let restoringKeeper = false;
 let recoveryTabId = null;
+let recoveryPromise = null;
 let recoveryAttempts = 0;
 
 // Storage is optional for the import itself. If Firefox has not granted the
@@ -46,28 +47,31 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-browser.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
   if (!hasLocalStorage() || removeInfo.isWindowClosing || restoringKeeper) return;
-  try {
-    const saved = await storageGet([KEEPER_TAB_KEY, KEEPER_URL_KEY, SYNC_ACTIVE_KEY]);
-    // Recreate the bank tab only while an import is actually running. This
-    // avoids unexpectedly reopening PSB after the user closes it normally.
-    if (!saved[SYNC_ACTIVE_KEY] || saved[KEEPER_TAB_KEY] !== tabId || !saved[KEEPER_URL_KEY]) return;
-    restoringKeeper = true;
-    const restored = await browser.tabs.create({
-      url: saved[KEEPER_URL_KEY],
-      active: false,
-      pinned: true
-    });
-    await storageSet({ [KEEPER_TAB_KEY]: restored.id });
-    await waitForTab(restored.id);
-    recoveryTabId = restored.id;
-    console.info("PSB tab was closed during import; background tab restored.");
-  } catch (error) {
-    console.warn("Could not restore PSB session tab:", error);
-  } finally {
-    restoringKeeper = false;
-  }
+  // Assign the promise immediately so the import's finally block can wait for
+  // restoration instead of racing the asynchronous tabs.create call.
+  recoveryPromise = (async () => {
+    try {
+      const saved = await storageGet([KEEPER_TAB_KEY, KEEPER_URL_KEY, SYNC_ACTIVE_KEY]);
+      if (!saved[SYNC_ACTIVE_KEY] || saved[KEEPER_TAB_KEY] !== tabId || !saved[KEEPER_URL_KEY]) return;
+      restoringKeeper = true;
+      const restored = await browser.tabs.create({
+        url: saved[KEEPER_URL_KEY],
+        active: false,
+        pinned: true
+      });
+      recoveryTabId = restored.id;
+      await storageSet({ [KEEPER_TAB_KEY]: restored.id });
+      await waitForTab(restored.id);
+      console.info("PSB tab was closed during import; background tab restored.");
+    } catch (error) {
+      console.warn("Could not restore PSB session tab:", error);
+    } finally {
+      restoringKeeper = false;
+    }
+  })();
+  recoveryPromise.catch(() => {});
 });
 
 async function notify(title, message, badge = "...") {
@@ -366,6 +370,10 @@ async function importPsb(preferredTabId = null) {
   } finally {
     // If the user closed the working tab mid-import, resume once the replacement
     // tab has loaded. Limit retries to avoid an endless loop if tabs keep closing.
+    if (recoveryPromise) {
+      await recoveryPromise.catch(() => {});
+      recoveryPromise = null;
+    }
     const nextTabId = recoveryTabId;
     recoveryTabId = null;
     running = false;
