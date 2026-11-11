@@ -189,7 +189,7 @@ async function capturePsbCsv() {
         const type = (el.type || "").toLowerCase();
         const hint = [el.getAttribute("placeholder"), el.getAttribute("aria-label"),
           el.getAttribute("name"), el.getAttribute("data-testid")].join(" ").toLowerCase();
-        return type === "date" || /дата|period|период|с\s*\(от\)|по\s*\(до\)/i.test(hint) ||
+        return type === "date" || /дата|period|период|от\s*[-–—]\s*до|с\s*\(от\)|по\s*\(до\)/i.test(hint) ||
           /^\d{2}\.\d{2}\.\d{4}$/.test(el.value || "");
       });
     // PSB currently renders the period as one combined input, e.g.
@@ -211,8 +211,12 @@ async function capturePsbCsv() {
         ].join(".");
         const minDate = range.getAttribute("min") || range.getAttribute("data-min-date") || "";
         const startValue = /^\d{2}\.\d{2}\.\d{4}$/.test(minDate) ? minDate : "01.01.2000";
-        setNativeValue(range, startValue + " – " + endValue);
+        const requestedRange = startValue + " – " + endValue;
+        setNativeValue(range, requestedRange);
         await wait(1800);
+        if (normalize(range.value) !== normalize(requestedRange)) {
+          throw new Error("Поле периода ПСБ не приняло полный диапазон. Откройте календарь «От - До» и выберите даты вручную.");
+        }
         return "combined-date-range";
       }
     }
@@ -284,13 +288,13 @@ async function importPsb() {
     // Reuse the already authenticated PSB tab. The normal landing page after
     // login is /lk/products/summary; navigate that SAME tab to the statement.
     // Do not create a new tab: PSB may bind authentication state to the tab.
-    const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
-    const bankTab = activeTabs.find(tab => tab.url && tab.url.startsWith("https://ib.psbank.ru/"));
+    const currentWindowTabs = await browser.tabs.query({ currentWindow: true });
+    const bankTab = currentWindowTabs.find(tab => tab.url && tab.url.startsWith("https://ib.psbank.ru/"));
     if (!bankTab) {
-      throw new Error("Откройте ПСБ в текущей активной вкладке, войдите в аккаунт и нажмите значок расширения ещё раз.");
+      throw new Error("В этом окне Firefox не найдена вкладка ПСБ. Откройте банк, войдите в аккаунт и нажмите значок расширения ещё раз.");
     }
-    // Work visibly in the active tab for now; no background or keeper tabs.
     tabId = bankTab.id;
+    await browser.tabs.update(tabId, { active: true });
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
