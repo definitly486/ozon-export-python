@@ -30,11 +30,16 @@ const isPsb = r => /псб|psb/i.test(String(r.source || ''));
 function filtered() {
  const q=$('search').value.trim().toLowerCase();
  const source=$('sourceFilter').value;
- return operations.map((r,i)=>({r,i})).filter(({r}) =>
+ const rows=operations.map((r,i)=>({r,i})).filter(({r}) =>
   (!q || [r.date_local,r.name,r.purpose,r.category,r.debit,r.credit,r.amount].some(v=>String(v??'').toLowerCase().includes(q))) &&
   (source==='all' || (source==='psb' ? isPsb(r) : !isPsb(r))) &&
   !($('exclude').checked && isOzon(r))
  );
+ // Keep the default chronological order, or sort by numeric credit descending.
+ if($('sortOrder')?.value==='credit-desc') {
+  rows.sort((a,b)=>Number(b.r.credit||0)-Number(a.r.credit||0) || String(b.r.time||'').localeCompare(String(a.r.time||'')));
+ }
+ return rows;
 }
 function shortPurpose(value) {
  const full=String(value ?? '').replace(/\\s+/g,' ').trim();
@@ -133,7 +138,7 @@ const bookmarklet = `javascript:(async()=>{try{const api='https://finance.ozon.r
 $('bookmarklet').value=bookmarklet;
 $('copyBookmarklet').onclick=()=>copyBookmarkletCode(bookmarklet,'bookmarklet','copyBookmarklet','Ozon');
 
-$('search').oninput=render;$('sourceFilter').onchange=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
+$('search').oninput=render;$('sourceFilter').onchange=render;$('sortOrder').onchange=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
 $('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};$('none').onclick=()=>{selected.clear();render();};
 $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(i));try{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});if(!r.ok){const j=await r.json();throw Error(j.error);}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`bank_operations_${ymd(new Date())}.csv`;a.click();URL.revokeObjectURL(url);msg(`Экспортировано строк: ${items.length}`);}catch(e){msg(e.message,true);}};
 
