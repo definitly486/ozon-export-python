@@ -21,3 +21,13 @@ Temporary add-ons are removed when Firefox restarts; load it again. For permanen
 - The extension sends operation JSON only to the loopback address `127.0.0.1:8765`.
 - This relies on Ozon's private web-app endpoint, not a documented public API. Ozon may change it at any time.
 - The extension does not automate login, bypass MFA, or run in the background.
+
+
+### Если расширение сообщает, что Ozon Bill недоступен
+
+1. Запустите приложение из каталога проекта командой `./run.sh` и оставьте терминал открытым.
+2. Откройте в Firefox адрес `http://127.0.0.1:8765/api/health`. Должен отобразиться JSON с `"ok": true`.
+3. Откройте `about:debugging#/runtime/this-firefox`, найдите Ozon Bill и нажмите «Перезагрузить».
+4. Повторите импорт из вкладки Ozon Банка.
+
+Новая версия расширения проверяет локальный сервер отдельно от передачи выписки. Для отправки JSON используется `text/plain`, чтобы избежать предварительного CORS-запроса `OPTIONS` в Firefox.
