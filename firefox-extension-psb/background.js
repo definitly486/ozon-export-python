@@ -347,7 +347,6 @@ async function importPsb(preferredTabId = null) {
       world: "MAIN",
       func: capturePsbCsv
     });
-    const csv = result && result[0] && result[0].result;
     const injected = result && result[0] ? result[0].result : undefined;
     const csv = typeof injected === "string" ? injected :
       (injected && typeof injected.csv === "string" ? injected.csv : null);
@@ -360,9 +359,9 @@ async function importPsb(preferredTabId = null) {
       throw new Error("Страница ПСБ не вернула текст CSV (" + resultInfo +
         "). Возможно, Firefox не дождался асинхронного перехвата или банк начал прямое скачивание файла.");
     }
-    if (!csv.includes("\\n") || !/[;,\\t]/.test(csv.slice(0, 5000))) {
+    if (!csv.includes("\n") || !/[;,\t]/.test(csv.slice(0, 5000))) {
       throw new Error("ПСБ вернул ответ, но он не похож на CSV. Начало ответа: " +
-        csv.slice(0, 180).replace(/\\s+/g, " "));
+        csv.slice(0, 180).replace(/\s+/g, " "));
     }
 
     const response = await fetch(LOCAL_API, {
