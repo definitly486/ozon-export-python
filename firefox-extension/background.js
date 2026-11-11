@@ -99,9 +99,12 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       ". Разрешите расширению доступ к страницам ozon.ru и повторите импорт.");
   }
 
-  await notify("Ozon — проверка авторизации",
-    "Если открылся вход, завершите его. Импорт продолжится после возврата в Ozon Банк.", "...");
-  await browser.tabs.update(tabId, { active: true });
+  await notify("Ozon — требуется авторизация",
+    "Импорт выполняется в фоне. Если сессия истекла, войдите в Ozon вручную в обычной вкладке и повторите импорт.", "...");
+  // Quiet mode: keep the temporary Ozon tab in the background.
+  // If interactive login is required, do not steal focus; report that the user
+  // must sign in to Ozon manually and retry the import.
+
 
   return new Promise((resolve, reject) => {
     let finished = false;
