@@ -131,9 +131,14 @@ function waitForTab(tabId, timeoutMs = 60000, settleMs = 1800) {
 // Captures CSV text from Blob URLs or Fetch/XHR responses; never reads cookies.
 async function capturePsbCsv() {
   const normalize = value => String(value || "").replace(/\\s+/g, " ").trim();
-  const isCsv = value => typeof value === "string" &&
-    value.includes("Дата и время транзакции") &&
-    value.includes("Сумма в валюте карты");
+  // PSB may vary column wording between account/card statements. Accept a
+  // CSV header containing date and amount columns instead of two exact labels.
+  const isCsv = value => {
+    if (typeof value !== "string" || value.length < 20) return false;
+    const sample = value.replace(/^\\uFEFF/, "").slice(0, 5000).toLocaleLowerCase("ru-RU");
+    const looksDelimited = sample.split(/\\r?\\n/).slice(0, 5).some(line => /[;,\\t]/.test(line));
+    return looksDelimited && /дат[ауы]/i.test(sample) && /сумм/i.test(sample);
+  };
   const visible = element => {
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
@@ -343,8 +348,21 @@ async function importPsb(preferredTabId = null) {
       func: capturePsbCsv
     });
     const csv = result && result[0] && result[0].result;
-    if (typeof csv !== "string" || !csv.includes("Дата и время транзакции")) {
-      throw new Error("Страница ПСБ не вернула CSV-выписку.");
+    const injected = result && result[0] ? result[0].result : undefined;
+    const csv = typeof injected === "string" ? injected :
+      (injected && typeof injected.csv === "string" ? injected.csv : null);
+    if (typeof csv !== "string" || csv.length < 20) {
+      const resultInfo = !result ? "нет результата executeScript" :
+        !result[0] ? "пустой массив результата" :
+        "тип результата: " + typeof injected +
+        (injected === undefined ? " (undefined)" : "") +
+        (result[0].error ? "; ошибка: " + String(result[0].error) : "");
+      throw new Error("Страница ПСБ не вернула текст CSV (" + resultInfo +
+        "). Возможно, Firefox не дождался асинхронного перехвата или банк начал прямое скачивание файла.");
+    }
+    if (!csv.includes("\\n") || !/[;,\\t]/.test(csv.slice(0, 5000))) {
+      throw new Error("ПСБ вернул ответ, но он не похож на CSV. Начало ответа: " +
+        csv.slice(0, 180).replace(/\\s+/g, " "));
     }
 
     const response = await fetch(LOCAL_API, {
