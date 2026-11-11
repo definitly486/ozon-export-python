@@ -58,40 +58,74 @@ async function collectOzonOperations() {
   return { items };
 }
 
-browser.action.onClicked.addListener(async tab => {
-  try {
-    const url = new URL(tab.url || "");
-    if (url.hostname !== "finance.ozon.ru") {
-      await notify("Ozon Bill — требуется вход", "Откройте finance.ozon.ru и войдите в аккаунт, затем нажмите расширение ещё раз.", "!");
-      return;
-    }
+async function waitForTabComplete(tabId, timeoutMs = 45000) {
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    const finish = (error) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      browser.tabs.onUpdated.removeListener(onUpdated);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onUpdated = (updatedTabId, changeInfo) => {
+      if (updatedTabId === tabId && changeInfo.status === "complete") finish();
+    };
+    const timer = setTimeout(() => finish(new Error("Ozon не загрузился за 45 секунд")), timeoutMs);
+    browser.tabs.onUpdated.addListener(onUpdated);
+    browser.tabs.get(tabId).then(tab => {
+      if (tab.status === "complete") finish();
+    }).catch(finish);
+  });
+}
 
-    await notify("Ozon Bill — выполняется импорт", "Получаю операции из Ozon Банка…", "...");
+async function getOperationsFromBackgroundTab() {
+  // Open a temporary inactive tab so the request runs in Ozon's authenticated
+  // page context. The user does not need to keep the bank page open.
+  const tab = await browser.tabs.create({
+    url: "https://finance.ozon.ru/lk",
+    active: false
+  });
+  try {
+    await waitForTabComplete(tab.id);
+    const current = await browser.tabs.get(tab.id);
+    if (!current.url || new URL(current.url).hostname !== "finance.ozon.ru") {
+      throw new Error("Ozon перенаправил на другой адрес. Возможно, требуется повторный вход в банк.");
+    }
     const injected = await browser.scripting.executeScript({
       target: { tabId: tab.id },
       world: "MAIN",
       func: collectOzonOperations
     });
     const payload = injected?.[0]?.result;
-    if (!payload || !Array.isArray(payload.items)) throw new Error("Не удалось получить список операций из вкладки Ozon");
-    if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Проверьте, что открыт нужный счёт.");
+    if (!payload || !Array.isArray(payload.items)) {
+      throw new Error("Не удалось получить операции. Проверьте, что сессия Ozon ещё действительна.");
+    }
+    return payload;
+  } finally {
+    await browser.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
+browser.action.onClicked.addListener(async () => {
+  try {
+    await notify("Ozon Bill — выполняется импорт", "Открываю Ozon в фоновой вкладке и получаю операции…", "...");
+    const payload = await getOperationsFromBackgroundTab();
+    if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Возможно, требуется повторный вход в аккаунт.");
 
     await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…", "...");
-    // Check the local server separately so connection errors are distinguishable
-    // from failures while sending the operation payload.
     try {
       const health = await fetch("http://127.0.0.1:8765/api/health", { method: "GET", cache: "no-store" });
       if (!health.ok) throw new Error("HTTP " + health.status);
       const healthData = await health.json();
       if (healthData.ok !== true) throw new Error("неожиданный ответ сервера");
     } catch (error) {
-      throw new Error("Ozon Bill недоступен на 127.0.0.1:8765. Запустите ./run.sh и проверьте адрес http://127.0.0.1:8765/. Если страница не открывается, пришлите вывод терминала. Подробности: " + (error.message || error));
+      throw new Error("Ozon Bill недоступен на 127.0.0.1:8765. Запустите ./run.sh. Подробности: " + (error.message || error));
     }
 
     let response;
     try {
-      // text/plain avoids the CORS preflight OPTIONS request in Firefox.
-      // Flask parses the JSON body explicitly in /api/ozon/auto-sync.
       response = await fetch(LOCAL_API, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
@@ -99,13 +133,13 @@ browser.action.onClicked.addListener(async tab => {
         cache: "no-store"
       });
     } catch (error) {
-      throw new Error("Ozon Bill отвечает на проверку, но не принимает данные импорта. Перезагрузите расширение Firefox и повторите попытку. Подробности: " + (error.message || error));
+      throw new Error("Ozon Bill отвечает на проверку, но не принимает данные импорта. Подробности: " + (error.message || error));
     }
     let result;
     try {
       result = await response.json();
     } catch (_) {
-      throw new Error("Локальное приложение вернуло некорректный ответ. Убедитесь, что Ozon Bill запущен.");
+      throw new Error("Локальное приложение вернуло некорректный ответ.");
     }
     if (!response.ok || result.ok !== true) throw new Error(result.error || "Локальное приложение отклонило импорт");
 
@@ -119,11 +153,11 @@ browser.action.onClicked.addListener(async tab => {
       ? "Импорт завершён успешно."
       : "Импорт завершён: новых изменений нет, данные уже актуальны.";
     const details = "Получено: " + payload.items.length +
-      "\nДобавлено: " + added + " · Обновлено: " + updated +
-      "\nБез изменений: " + unchanged +
-      (skipped ? "\nПропущено: " + skipped : "") +
-      "\nВсего в базе: " + total;
-    await notify("Ozon Bill — успешно", status + "\n" + details, "OK");
+      "\\nДобавлено: " + added + " · Обновлено: " + updated +
+      "\\nБез изменений: " + unchanged +
+      (skipped ? "\\nПропущено: " + skipped : "") +
+      "\\nВсего в базе: " + total;
+    await notify("Ozon Bill — успешно", status + "\\n" + details, "OK");
   } catch (error) {
     await notify("Ozon Bill — ошибка импорта", String(error.message || error).slice(0, 450), "!");
     console.error("Ozon Bill import failed:", error);
