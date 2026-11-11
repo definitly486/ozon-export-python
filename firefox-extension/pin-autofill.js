@@ -14,11 +14,31 @@
   const editableInputs = root => Array.from(root.querySelectorAll("input"))
     .filter(el => visible(el) && !el.disabled && !el.readOnly &&
       !/hidden|search|email|checkbox|radio|submit|button/i.test(el.type));
-  function setValue(el, value) {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function setNativeValue(el, value) {
+    // Use the native setter so React/Vue controlled inputs can observe a
+    // value change rather than seeing their own value tracker as unchanged.
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (setter) setter.call(el, value); else el.value = value;
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  async function typeDigit(el, digit) {
+    el.focus();
+    const key = digit;
+    el.dispatchEvent(new KeyboardEvent("keydown", {
+      key, code: "Digit" + digit, bubbles: true, cancelable: true
+    }));
+    el.dispatchEvent(new InputEvent("beforeinput", {
+      data: digit, inputType: "insertText", bubbles: true, cancelable: true
+    }));
+    const next = String(el.value || "") + digit;
+    setNativeValue(el, next);
+    el.dispatchEvent(new InputEvent("input", {
+      data: digit, inputType: "insertText", bubbles: true
+    }));
+    el.dispatchEvent(new KeyboardEvent("keyup", {
+      key, code: "Digit" + digit, bubbles: true
+    }));
+    await sleep(140);
   }
   function pageText() {
     return document.body?.innerText || document.documentElement?.innerText || "";
@@ -91,14 +111,27 @@
     filling = true;
     try {
       if (fields.length === 4) {
-        fields.forEach((el, i) => setValue(el, ozonPin[i]));
-        fields[0].focus();
+        for (let i = 0; i < 4; i++) {
+          await typeDigit(fields[i], ozonPin[i]);
+        }
+        fields[3].dispatchEvent(new Event("change", { bubbles: true }));
       } else {
-        setValue(fields[0], ozonPin);
-        fields[0].focus();
+        // Enter one character at a time. Ozon may auto-submit only when its
+        // input handler observes the fourth digit, just as with manual typing.
+        const field = fields[0];
+        setNativeValue(field, "");
+        for (const digit of ozonPin) await typeDigit(field, digit);
+        field.dispatchEvent(new Event("change", { bubbles: true }));
       }
+      const entered = fields.length === 4
+        ? fields.every((el, i) => el.value === ozonPin[i])
+        : fields[0].value === ozonPin;
+      if (!entered) throw new Error("После ввода PIN значения полей не совпали с ожидаемыми.");
       await browser.storage.local.set({ ozonPinAutofillAt: Date.now() });
-      report("ozon-pin-autofilled", { fieldCount: fields.length, frameUrl: location.href });
+      report("ozon-pin-autofilled", {
+        fieldCount: fields.length, frameUrl: location.href,
+        inputMode: fields.length === 4 ? "segmented" : "sequential"
+      });
     } finally { filling = false; }
   }
   let scheduled = false;
