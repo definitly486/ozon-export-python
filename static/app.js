@@ -143,7 +143,7 @@ $('export').onclick=async()=>{
  } catch(e){msg(e.message,true);}
 };
 
-let lastDatabaseSync=null,lastDatabaseTotal=null,databasePollInProgress=false,databasePollTimer=null;
+let lastDatabaseSync=null,lastDatabaseTotal=null,lastPsbSync=null,lastPsbTotal=null,databasePollInProgress=false,databasePollTimer=null;
 async function refreshDbStatus(stats) {
  try {
   if(!stats){const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Не удалось прочитать базу');stats=await response.json();}
@@ -158,9 +158,11 @@ async function checkDatabaseForExternalChanges(){
   const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const stats=await response.json(),sync=stats.last_sync_at||null,total=Number(stats.total||0);
-  const changed=sync!==lastDatabaseSync||(lastDatabaseTotal!==null&&total!==lastDatabaseTotal);
-  lastDatabaseSync=sync;lastDatabaseTotal=total;
-  if(changed){await reloadPeriodFromDatabase();lastDatabaseSync=sync;lastDatabaseTotal=total;}
+  const psbSync=stats.psb_last_sync_at||null,psbTotal=Number(stats.psb_total||0);
+  const changed=sync!==lastDatabaseSync||(lastDatabaseTotal!==null&&total!==lastDatabaseTotal)||
+   psbSync!==lastPsbSync||(lastPsbTotal!==null&&psbTotal!==lastPsbTotal);
+  lastDatabaseSync=sync;lastDatabaseTotal=total;lastPsbSync=psbSync;lastPsbTotal=psbTotal;
+  if(changed){await reloadPeriodFromDatabase();lastDatabaseSync=sync;lastDatabaseTotal=total;lastPsbSync=psbSync;lastPsbTotal=psbTotal;}
   await refreshDbStatus(stats);
  }catch(e){$('dbStatus').textContent='Автообновление: ошибка проверки локальной базы ('+e.message+').';}
  finally{databasePollInProgress=false;}
@@ -170,7 +172,7 @@ async function initializeDashboard(){
   const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const stats=await response.json();
-  lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);
+  lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);\n  lastPsbSync=stats.psb_last_sync_at||null;lastPsbTotal=Number(stats.psb_total||0);
   await refreshDbStatus(stats);
  }catch(e){await refreshDbStatus();}
  await reloadPeriodFromDatabase();
