@@ -193,9 +193,9 @@ async function getOperationsFromBackgroundTab() {
     active: false
   });
   try {
+    await waitForTabComplete(tab.id);
     await notify("Ozon — страница загружена",
       "Фоновая вкладка загружена. Проверяю адрес и состояние авторизации…", "...", "import-ozon-loaded");
-    await waitForTabComplete(tab.id);
     await waitForFinanceReturn(tab.id);
     const current = await browser.tabs.get(tab.id);
     if (!current.url || new URL(current.url).hostname !== "finance.ozon.ru") {
