@@ -34,8 +34,13 @@ function render() {
  $('export').disabled=selected.size===0;
  if (!list.length) $('rows').innerHTML=`<tr><td colspan="9" class="empty">${operations.length?'Ничего не найдено':'Операций нет за выбранный период.'}</td></tr>`;
  else $('rows').innerHTML=list.map(({r,i})=>{const purpose=shortPurpose(r.purpose);return `<tr class="${selected.has(i)?'':'unselected'}"><td><input type="checkbox" data-index="${i}" ${selected.has(i)?'checked':''}></td><td title="${esc(r.date_local)}">${esc(r.date_local)}</td><td>${esc(r.source || "Ozon")}</td><td title="${esc(r.name)}"><b>${esc(r.name)}</b></td><td class="purpose-cell" title="${esc(purpose.full)}">${esc(purpose.concise)}</td><td title="${esc(r.category)}">${esc(r.category)}</td><td class="num">${r.debit?money(r.debit):''}</td><td class="num">${r.credit?money(r.credit):''}</td><td class="num ${r.amount<0?'negative':'positive'}">${money(r.amount)}</td></tr>`}).join('');
- const chosen=operations.filter((_,i)=>selected.has(i)); const sum=k=>chosen.reduce((a,r)=>a+Number(r[k]||0),0);
- $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по выбранным (${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:'';
+ // Totals follow the active bank/search filters and include only checked rows
+ // that are currently visible in the table.
+ const chosen=list.filter(({i})=>selected.has(i)).map(({r})=>r);
+ const sum=k=>chosen.reduce((a,r)=>a+Number(r[k]||0),0);
+ const source=$('sourceFilter').value;
+ const totalLabel=source==='psb'?'ПСБ':source==='ozon'?'Ozon':'всем банкам';
+ $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по ${totalLabel} (выбрано: ${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:`<tr><td colspan="9" class="empty">Нет выбранных операций для текущего фильтра (${totalLabel}).</td></tr>`;
 }
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
