@@ -22,23 +22,37 @@ async function notify(title, message, badge = "...") {
   } catch (_) {}
 }
 
-function waitForTab(tabId, timeoutMs = 60000) {
+function waitForTab(tabId, timeoutMs = 60000, settleMs = 1800) {
   return new Promise((resolve, reject) => {
     let finished = false;
+    let settleTimer = null;
+    const cleanup = () => {
+      clearTimeout(timeoutTimer);
+      clearTimeout(settleTimer);
+      browser.tabs.onUpdated.removeListener(listener);
+    };
     const finish = error => {
       if (finished) return;
       finished = true;
-      clearTimeout(timer);
-      browser.tabs.onUpdated.removeListener(listener);
+      cleanup();
       error ? reject(error) : resolve();
     };
-    const listener = (id, info) => {
-      if (id === tabId && info.status === "complete") finish();
+    const scheduleSettle = () => {
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => finish(), settleMs);
     };
-    const timer = setTimeout(() => finish(new Error("Страница ПСБ не загрузилась за 60 секунд.")), timeoutMs);
+    const listener = (id, info) => {
+      if (id !== tabId) return;
+      if (info.url || info.status === "loading") clearTimeout(settleTimer);
+      if (info.status === "complete") scheduleSettle();
+    };
+    const timeoutTimer = setTimeout(
+      () => finish(new Error("Страница ПСБ не завершила загрузку за 60 секунд.")),
+      timeoutMs
+    );
     browser.tabs.onUpdated.addListener(listener);
     browser.tabs.get(tabId).then(tab => {
-      if (tab.status === "complete") finish();
+      if (tab.status === "complete") scheduleSettle();
     }).catch(finish);
   });
 }
@@ -157,10 +171,20 @@ async function importPsb() {
     await waitForTab(tabId);
 
     const current = await browser.tabs.get(tabId);
-    if (!current.url || !current.url.startsWith("https://ib.psbank.ru/")) {
-      throw new Error("Банк перенаправил на неизвестный адрес. Импорт остановлен.");
+    let finalUrl;
+    try { finalUrl = new URL(current.url); } catch (_) {
+      throw new Error("Firefox не получил конечный адрес страницы ПСБ (адрес отсутствует или некорректен).");
     }
-    if (/\/login|\/auth|\/signin/i.test(new URL(current.url).pathname)) {
+    const host = finalUrl.hostname.toLowerCase();
+    const path = finalUrl.pathname.toLowerCase();
+    if (host !== "ib.psbank.ru") {
+      const safeTarget = host + path;
+      if (host.endsWith(".psbank.ru") || host === "psbank.ru") {
+        throw new Error("ПСБ перенаправил на другой адрес: " + safeTarget + ". Вероятно, требуется повторная авторизация или подтверждение. Войдите в ПСБ вручную в этом профиле Firefox и повторите импорт.");
+      }
+      throw new Error("После загрузки Firefox оказался на другом сайте: " + safeTarget + ". Проверьте доступность ПСБ в этом профиле.");
+    }
+    if (/login|auth|signin|sso/i.test(path)) {
       throw new Error("Сессия ПСБ истекла или требуется подтверждение. Войдите в банк в обычной вкладке Firefox и повторите импорт.");
     }
     if (!current.url.includes("/about/statement")) {
