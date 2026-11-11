@@ -91,15 +91,18 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       return host === "ozon.ru" || host.endsWith(".ozon.ru");
     } catch (_) { return false; }
   };
-  const tab = await browser.tabs.get(tabId);
-  if (isFinance(tab.url)) return;
-  if (!isOzonDomain(tab.url)) {
-    throw new Error("Ozon перенаправил на внешний адрес: " + (tab.url || "адрес неизвестен") +
-      ". Проверьте адрес и повторите импорт.");
+  const describeUrl = url => url || "URL пока недоступен (ожидаю завершения навигации)";
+  const initial = await browser.tabs.get(tabId).catch(() => null);
+  if (initial?.url && isFinance(initial.url)) return;
+  if (initial?.url && !isOzonDomain(initial.url)) {
+    throw new Error("Ozon открыл неожиданный адрес: " + initial.url +
+      ". Разрешите расширению доступ к страницам ozon.ru и повторите импорт.");
   }
 
-  await notify("Требуется вход в Ozon", "Завершите вход в открывшейся вкладке. После возврата в Ozon Банк импорт продолжится автоматически.", "...");
-  await browser.tabs.update(tabId, {active: true});
+  await notify("Ozon — проверка авторизации",
+    "Если открылся вход, завершите его. Импорт продолжится после возврата в Ozon Банк.", "...");
+  await browser.tabs.update(tabId, { active: true });
+
   return new Promise((resolve, reject) => {
     let finished = false;
     const finish = error => {
@@ -109,13 +112,26 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       browser.tabs.onUpdated.removeListener(onUpdated);
       if (error) reject(error); else resolve();
     };
-    const onUpdated = async (updatedId, changeInfo, updatedTab) => {
-      if (updatedId !== tabId || !changeInfo.url) return;
-      if (isFinance(changeInfo.url) || (updatedTab?.url && isFinance(updatedTab.url))) finish();
-      else if (!isOzonDomain(changeInfo.url)) finish(new Error("После входа Ozon перенаправил на неожиданный адрес: " + changeInfo.url));
+    const inspect = url => {
+      if (!url) return; // Firefox may omit tab.url until host permission is granted.
+      if (isFinance(url)) finish();
+      else if (!isOzonDomain(url)) {
+        finish(new Error("После входа Ozon открыл неожиданный адрес: " + url +
+          ". Проверьте, что вход выполняется в официальном домене Ozon."));
+      }
     };
-    const timer = setTimeout(() => finish(new Error("Время ожидания входа в Ozon истекло (3 минуты). Повторите импорт.")), timeoutMs);
+    const onUpdated = (updatedId, changeInfo, updatedTab) => {
+      if (updatedId !== tabId) return;
+      inspect(changeInfo?.url || updatedTab?.url);
+    };
+    const timer = setTimeout(() =>
+      finish(new Error("Не дождался возврата в Ozon Банк за 3 минуты. Проверьте вход и повторите импорт.")),
+      timeoutMs
+    );
+
+    // Subscribe before re-reading the tab to avoid missing a fast redirect.
     browser.tabs.onUpdated.addListener(onUpdated);
+    browser.tabs.get(tabId).then(tab => inspect(tab?.url)).catch(() => {});
   });
 }
 
