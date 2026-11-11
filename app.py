@@ -5,6 +5,8 @@ import io
 import os
 import webbrowser
 from datetime import date
+
+from psb_download_watcher import start_psb_download_watcher
 from flask import Flask, jsonify, render_template, request, send_file
 
 from ozon_client import OzonClient, OzonApiError, CONFIRMED_STATUS
@@ -225,4 +227,6 @@ def export_csv():
 
 
 if __name__ == "__main__":
+    # Watch for newly downloaded PSB CSV statements without affecting Ozon imports.
+    start_psb_download_watcher()
     app.run(host=os.getenv("HOST", "127.0.0.1"), port=int(os.getenv("PORT", "8765")), debug=False)
