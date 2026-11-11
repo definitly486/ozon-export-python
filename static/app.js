@@ -135,3 +135,20 @@ $('copyPsbBookmarklet').onclick=()=>copyBookmarkletCode(psbBookmarklet,'psbBookm
 
 // Load the currently selected period from the saved SQLite database on startup.
 reloadPeriodFromDatabase();
+
+
+// Appearance switch: presentation only; all existing application logic is preserved.
+(function initDesignToggle(){
+ const button=$('designToggle');
+ if(!button) return;
+ const apply=modern=>{
+  document.body.classList.toggle('design-modern',modern);
+  button.textContent=modern?'↩ Старый дизайн':'✨ Новый дизайн';
+  button.setAttribute('aria-pressed',String(modern));
+  try{localStorage.setItem('ozonBillDesign',modern?'modern':'classic');}catch(_){}
+ };
+ let modern=false;
+ try{modern=localStorage.getItem('ozonBillDesign')==='modern';}catch(_){}
+ apply(modern);
+ button.addEventListener('click',()=>apply(!document.body.classList.contains('design-modern')));
+})();
