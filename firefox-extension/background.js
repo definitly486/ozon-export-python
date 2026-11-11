@@ -1,5 +1,15 @@
 const OZON_API = "https://finance.ozon.ru/apps/pfm/api/operations/groupOperationsV3";
 const LOCAL_API = "http://127.0.0.1:8765/api/ozon/auto-sync";
+const NOTIFICATION_ID = "ozon-bill-sync";
+
+async function notify(title, message) {
+  const options = { type: "basic", iconUrl: "icon.svg", title, message };
+  try {
+    await browser.notifications.update(NOTIFICATION_ID, options);
+  } catch (_) {
+    await browser.notifications.create(NOTIFICATION_ID, options);
+  }
+}
 
 async function collectOzonOperations() {
   let cursor = null;
@@ -25,7 +35,7 @@ async function collectOzonOperations() {
     items.push(...group.items);
     cursor = group.cursors?.next ?? null;
     page += 1;
-    if (page >= 500) break;
+    if (page >= 500 && cursor) throw new Error("Слишком много страниц операций. Импорт остановлен, чтобы не сохранить неполную выписку.");
   } while (cursor);
   return { items };
 }
@@ -34,12 +44,11 @@ browser.action.onClicked.addListener(async tab => {
   try {
     const url = new URL(tab.url || "");
     if (url.hostname !== "finance.ozon.ru") {
-      await browser.notifications.create({
-        type: "basic", iconUrl: "icon.svg", title: "Ozon Bill",
-        message: "Сначала откройте finance.ozon.ru и войдите в аккаунт."
-      });
+      await notify("Ozon Bill — требуется вход", "Откройте finance.ozon.ru и войдите в аккаунт, затем нажмите расширение ещё раз.");
       return;
     }
+
+    await notify("Ozon Bill — выполняется импорт", "Получаю операции из Ozon Банка…");
     const injected = await browser.scripting.executeScript({
       target: { tabId: tab.id },
       world: "MAIN",
@@ -47,23 +56,38 @@ browser.action.onClicked.addListener(async tab => {
     });
     const payload = injected?.[0]?.result;
     if (!payload || !Array.isArray(payload.items)) throw new Error("Не удалось получить список операций из вкладки Ozon");
+    if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Проверьте, что открыт нужный счёт.");
 
+    await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…");
     const response = await fetch(LOCAL_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Локальное приложение отклонило импорт");
+    let result;
+    try {
+      result = await response.json();
+    } catch (_) {
+      throw new Error("Локальное приложение вернуло некорректный ответ. Убедитесь, что Ozon Bill запущен.");
+    }
+    if (!response.ok || result.ok !== true) throw new Error(result.error || "Локальное приложение отклонило импорт");
 
-    await browser.notifications.create({
-      type: "basic", iconUrl: "icon.svg", title: "Ozon Bill — обновлено",
-      message: result.message || ("Получено операций: " + payload.items.length)
-    });
+    const sync = result.sync || {};
+    const added = Number(sync.new || 0);
+    const updated = Number(sync.updated || 0);
+    const unchanged = Number(sync.unchanged || 0);
+    const skipped = Number(sync.skipped || 0);
+    const total = Number(result.database_total || 0);
+    const status = added + updated > 0
+      ? "Импорт завершён успешно."
+      : "Импорт завершён: новых изменений нет, данные уже актуальны.";
+    const details = "Получено: " + payload.items.length +
+      "\nДобавлено: " + added + " · Обновлено: " + updated +
+      "\nБез изменений: " + unchanged +
+      (skipped ? "\nПропущено: " + skipped : "") +
+      "\nВсего в базе: " + total;
+    await notify("Ozon Bill — успешно", status + "\n" + details);
   } catch (error) {
-    await browser.notifications.create({
-      type: "basic", iconUrl: "icon.svg", title: "Ozon Bill — ошибка",
-      message: String(error.message || error).slice(0, 180)
-    });
+    await notify("Ozon Bill — ошибка импорта", String(error.message || error).slice(0, 450));
   }
 });
