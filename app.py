@@ -123,13 +123,13 @@ def export_csv():
 
     output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
-    writer.writerow(["Дата", "Название", "Цель", "Категория", "Дебет", "Кредит", "Итого"])
+    writer.writerow(["Дата", "Банк", "Название", "Цель", "Категория", "Дебет", "Кредит", "Итого"])
     exported = 0
     for row in selected:
         if not isinstance(row, dict) or row.get("status") != CONFIRMED_STATUS:
             continue
         writer.writerow([
-            row.get("date_local", row.get("time", "")), row.get("name", ""),
+            row.get("date_local", row.get("time", "")), row.get("source") or "Ozon", row.get("name", ""),
             row.get("purpose", ""), row.get("category", ""),
             row.get("debit", ""), row.get("credit", ""), row.get("amount", ""),
         ])
