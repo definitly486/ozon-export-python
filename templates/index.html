@@ -9,11 +9,21 @@
     <header><div><div class="eyebrow">OZON БАНК · ПСБ</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><div class="header-tools"><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div></header>
     <section class="panel controls">
       <div class="actions"><button id="connect" class="primary">Открыть Ozon Банк в Firefox</button><span id="status" class="muted">Используется обычный Firefox, без Selenium</span></div>
-      <div class="dates"><label>Дата начала<input id="start" type="date"></label><label>Дата окончания<input id="end" type="date"></label><label class="file-label">Файл операций JSON<input id="sourceFile" type="file" accept=".json,application/json"></label><button id="load" class="primary">Обновить базу и показать</button></div>
-      <div class="dates psb-import">
-        <label class="file-label">CSV-выписка ПСБ<input id="psbFile" type="file" accept=".csv,text/csv"></label>
-        <button id="loadPsb" class="primary" type="button">Импортировать выписку ПСБ</button>
-        <span class="hint">ПСБ загружается отдельно; импорт Ozon работает как раньше.</span>
+      <div class="dates date-controls">
+        <label>Дата начала<input id="start" type="date"></label>
+        <label>Дата окончания<input id="end" type="date"></label>
+      </div>
+      <div class="import-grid">
+        <div class="import-row">
+          <label class="file-label">Файл операций Ozon (JSON)<input id="sourceFile" type="file" accept=".json,application/json"></label>
+          <button id="load" class="primary import-action">Обновить базу и показать</button>
+          <span class="import-note">Добавить новые операции Ozon в локальную базу</span>
+        </div>
+        <div class="import-row">
+          <label class="file-label">Выписка ПСБ (CSV)<input id="psbFile" type="file" accept=".csv,text/csv"></label>
+          <button id="loadPsb" class="primary import-action" type="button">Импортировать выписку ПСБ</button>
+          <span class="import-note">ПСБ загружается отдельно от Ozon</span>
+        </div>
       </div>
       <div class="bookmarklet-box">
         <b>Автоматическое скачивание выписки ПСБ</b>
