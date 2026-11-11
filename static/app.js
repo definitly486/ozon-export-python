@@ -15,7 +15,7 @@ function render() {
  if (!list.length) $('rows').innerHTML=`<tr><td colspan="9" class="empty">${operations.length?'Ничего не найдено':'Операций нет за выбранный период.'}</td></tr>`;
  else $('rows').innerHTML=list.map(({r,i})=>`<tr class="${selected.has(i)?'':'unselected'}"><td><input type="checkbox" data-index="${i}" ${selected.has(i)?'checked':''}></td><td>${esc(r.date_local)}</td><td>${esc(r.source || "Ozon")}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.purpose)}</td><td>${esc(r.category)}</td><td class="num">${r.debit?money(r.debit):''}</td><td class="num">${r.credit?money(r.credit):''}</td><td class="num ${r.amount<0?'negative':'positive'}">${money(r.amount)}</td></tr>`).join('');
  const chosen=operations.filter((_,i)=>selected.has(i)); const sum=k=>chosen.reduce((a,r)=>a+Number(r[k]||0),0);
- $('totals').innerHTML=chosen.length?`<tr><td colspan="5">Итого по выбранным (${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:'';
+ $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по выбранным (${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:'';
 }
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
