@@ -1,5 +1,6 @@
 const LOCAL_API = "http://127.0.0.1:8765/api/ozon/auto-sync";
 const NOTIFICATION_ID = "ozon-bill-sync";
+let lastPinAutofillAt = 0;
 
 // Content script reports PIN autofill from the temporary Ozon tab.
 // Show this in Firefox notifications so it remains visible after redirects.
@@ -19,12 +20,20 @@ browser.runtime.onMessage.addListener(message => {
       return notify("Ozon — PIN не сохранён",
         "Откройте настройки расширения и сохраните четырёхзначный PIN.", "!");
     case "ozon-pin-fields-not-found":
+      // Multiple frames inspect the same PIN screen. A frame without inputs
+      // must not report failure if a sibling frame has already filled them.
+      if (Date.now() - lastPinAutofillAt < 20000) return;
       return notify("Ozon — поля PIN не найдены",
-        "Экран PIN обнаружен, но поля ввода не распознаны. Автозаполнение не выполнено.", "!");
+        "В этом фрейме поля PIN не распознаны. Адрес фрейма: " +
+        String(message.frameUrl || "неизвестен") +
+        ". Проверяю, не выполнил ли автозаполнение другой фрейм.", "!");
     case "ozon-pin-autofilled": {
+      lastPinAutofillAt = Date.now();
       const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
       return notify("Ozon — PIN подставлен",
-        "Сохранённый PIN автоматически введён в " + count + ". Вход не подтверждается автоматически.", "OK");
+        "Сохранённый PIN автоматически введён в " + count +
+        ". Вход не подтверждается автоматически. Фрейм: " +
+        String(message.frameUrl || "неизвестен"), "OK");
     }
     default:
       return;
