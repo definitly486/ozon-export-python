@@ -35,6 +35,18 @@ class PsbImporterTests(unittest.TestCase):
         self.assertEqual(rows[1]["debit"], 75.0)
         self.assertEqual(rows[1]["source"], "ПСБ")
 
+    def test_period_filter_uses_processing_date(self):
+        statement = """\ufeff"Номер контракта";"30024-P-000000"
+"Входящий остаток";0,00;RUR
+"Дата и время транзакции";"Дата обработки транзакции";"Детали";"Сумма";"Сумма в валюте карты"
+09.10.2026 19:11:08;12.10.2026;"220003..2782 Покупка RUS MOSCOW PYATEROCHKA 000113. MCC 5411";402,45;-402,45
+"""
+        parsed = parse_psb_csv(statement)
+        rows = convert_psb_operations(parsed, date(2026, 10, 11), date(2026, 10, 11))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["date_local"], "2026-10-09 19:11:08")
+        self.assertEqual(rows[0]["debit"], 402.45)
+
     def test_rejects_wrong_csv(self):
         with self.assertRaises(PsbStatementError):
             parse_psb_csv("not a PSB statement")
