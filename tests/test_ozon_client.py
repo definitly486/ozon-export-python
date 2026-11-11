@@ -19,13 +19,15 @@ def operation(status=CONFIRMED_STATUS, sign="NEGATIVE", cents=1234):
 
 
 class OzonClientStatusTests(unittest.TestCase):
-    def test_hold_is_not_exported_as_money_movement(self):
+    def test_hold_is_visible_but_not_counted_as_confirmed(self):
         payload = {"items": [operation(HOLD_STATUS)]}
         rows, summary = OzonClient.convert_export_with_summary(
             payload, date(2026, 11, 11), date(2026, 11, 11)
         )
-        self.assertEqual(rows, [])
-        self.assertEqual(summary["excluded_hold"], 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], HOLD_STATUS)
+        self.assertEqual(rows[0]["amount"], -12.34)
+        self.assertEqual(summary["hold"], 1)
         self.assertEqual(summary["confirmed"], 0)
 
     def test_confirmed_authorization_is_kept(self):
