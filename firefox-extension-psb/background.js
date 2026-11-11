@@ -189,7 +189,81 @@ async function capturePsbCsv() {
     return originalSend.apply(this, args);
   };
 
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const setNativeValue = (element, value) => {
+    const setter = Object.getOwnPropertyDescriptor(
+      element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype,
+      "value"
+    )?.set;
+    if (setter) setter.call(element, value);
+    else element.value = value;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    element.dispatchEvent(new Event("blur", { bubbles: true }));
+  };
+  const chooseFullPeriod = async () => {
+    const allTimeLabels = [
+      "весь период", "за весь период", "всё время", "все время",
+      "за всё время", "за все время", "за весь доступный период"
+    ];
+    const candidates = [...document.querySelectorAll("button,[role='button'],[role='option'],li,label,span,div")]
+      .filter(el => visible(el) && allTimeLabels.includes(normalize(el.innerText || el.textContent).toLocaleLowerCase("ru-RU")));
+    candidates.sort((a, b) => (a.querySelector("*") ? 1 : 0) - (b.querySelector("*") ? 1 : 0));
+    if (candidates.length) {
+      click(candidates[0]);
+      await wait(1200);
+      return "preset";
+    }
+
+    const selects = [...document.querySelectorAll("select")].filter(visible);
+    for (const select of selects) {
+      const option = [...select.options].find(item =>
+        allTimeLabels.includes(normalize(item.textContent).toLocaleLowerCase("ru-RU"))
+      );
+      if (option) {
+        setNativeValue(select, option.value);
+        await wait(1200);
+        return "preset";
+      }
+    }
+
+    const dateInputs = [...document.querySelectorAll("input:not([type='hidden'])")]
+      .filter(el => visible(el) && !el.disabled)
+      .filter(el => {
+        const type = (el.type || "").toLowerCase();
+        const hint = [el.getAttribute("placeholder"), el.getAttribute("aria-label"),
+          el.getAttribute("name"), el.getAttribute("data-testid")].join(" ").toLowerCase();
+        return type === "date" || /дата|period|период|с\s*\(от\)|по\s*\(до\)/i.test(hint) ||
+          /^\\d{2}\\.\\d{2}\\.\\d{4}$/.test(el.value || "");
+      });
+    if (dateInputs.length >= 2) {
+      const today = new Date();
+      const endIso = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"),
+        String(today.getDate()).padStart(2,"0")].join("-");
+      const start = dateInputs[0], end = dateInputs[1];
+      const startValue = start.type === "date" ? "2000-01-01" : "01.01.2000";
+      const endValue = end.type === "date" ? endIso :
+        (String(end.placeholder || end.value || "").includes("-") ? endIso :
+          [String(today.getDate()).padStart(2,"0"), String(today.getMonth()+1).padStart(2,"0"), today.getFullYear()].join("."));
+      setNativeValue(start, startValue);
+      setNativeValue(end, endValue);
+      await wait(1600);
+      return "date-range";
+    }
+
+    const visibleInputs = [...document.querySelectorAll("input:not([type='hidden']),select")]
+      .filter(visible).map(el => ({
+        type: el.tagName.toLowerCase() === "select" ? "select" : (el.type || "text"),
+        label: el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.getAttribute("name") || "",
+        value: el.value || ""
+      }));
+    throw new Error("Не удалось определить элементы выбора периода выписки ПСБ. Экспорт остановлен, чтобы не скачать только неделю. Элементы на странице: " +
+      JSON.stringify(visibleInputs).slice(0, 700));
+  };
+
   try {
+    const periodMode = await chooseFullPeriod();
+    console.info("PSB full-history period selected:", periodMode);
     let item = findExact("Скачать в CSV");
     if (!item) {
       const menu = findExact("Получить выписку");
