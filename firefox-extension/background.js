@@ -4,9 +4,8 @@ const NOTIFICATION_ID = "ozon-bill-sync";
 
 async function notify(title, message) {
   const options = { type: "basic", iconUrl: "icon.svg", title, message };
-  try {
-    await browser.notifications.update(NOTIFICATION_ID, options);
-  } catch (_) {
+  const updated = await browser.notifications.update(NOTIFICATION_ID, options);
+  if (!updated) {
     await browser.notifications.create(NOTIFICATION_ID, options);
   }
 }
