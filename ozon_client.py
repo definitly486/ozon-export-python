@@ -150,6 +150,6 @@ class OzonClient:
 
     @classmethod
     def convert_export(cls, payload: Any, start_date: date, end_date: date) -> list[dict[str, Any]]:
-        """Backward-compatible helper returning confirmed transactions only."""
+        """Return confirmed and HOLD rows for display in the statement."""
         transactions, _summary = cls.convert_export_with_summary(payload, start_date, end_date)
         return transactions
