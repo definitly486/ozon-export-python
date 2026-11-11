@@ -8,8 +8,10 @@ Click the extension button while signed in at `https://finance.ozon.ru`. The ext
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on…** and choose this folder's `manifest.json`.
 4. Open `https://finance.ozon.ru/lk` and sign in normally.
-5. Click the Ozon Bill extension icon. A Firefox notification reports the result.
-6. The app's current date filter is refreshed by reloading the page or changing the date range.
+5. Click the Ozon Bill extension icon. Notifications show each stage: fetching from Ozon, saving to the database, and the final result.
+6. On success, the final notification shows how many operations were received, added, updated, unchanged, skipped (if any), and the total number stored in the database. If nothing new was added, it explicitly says the data is already up to date.
+7. On failure, the notification shows the error reason. Check that Ozon Bill is running and that Firefox is signed in to the correct Ozon Bank account.
+8. The app's current date filter is refreshed by reloading the page or changing the date range.
 
 Temporary add-ons are removed when Firefox restarts; load it again. For permanent installation the extension must be packaged and signed by Mozilla.
 
