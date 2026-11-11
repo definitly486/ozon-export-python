@@ -6,7 +6,7 @@ import os
 import webbrowser
 from datetime import date
 from flask import Flask, jsonify, render_template, request, send_file
-from ozon_client import OzonClient, OzonApiError
+from ozon_client import OzonClient, OzonApiError, CONFIRMED_STATUS
 
 app = Flask(__name__)
 OZON_URL = "https://finance.ozon.ru/lk"
@@ -38,8 +38,8 @@ def import_operations():
         end = date.fromisoformat(request.args.get("end", ""))
         if start > end:
             return jsonify(error="Дата начала позже даты окончания."), 400
-        items = OzonClient.convert_export(payload, start, end)
-        return jsonify(items=items, count=len(items))
+        items, summary = OzonClient.convert_export_with_summary(payload, start, end)
+        return jsonify(items=items, count=len(items), summary=summary)
     except ValueError:
         return jsonify(error="Укажите корректный период."), 400
     except OzonApiError as exc:
@@ -56,14 +56,20 @@ def export_csv():
     output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
     writer.writerow(["Дата", "Название", "Цель", "Категория", "Дебет", "Кредит", "Итого"])
+    exported = 0
     for row in selected:
-        if not isinstance(row, dict):
+        if not isinstance(row, dict) or row.get("status") != CONFIRMED_STATUS:
             continue
         writer.writerow([
             row.get("date_local", row.get("time", "")), row.get("name", ""),
             row.get("purpose", ""), row.get("category", ""),
             row.get("debit", ""), row.get("credit", ""), row.get("amount", ""),
         ])
+        exported += 1
+
+    if exported == 0:
+        return jsonify(error="Нет подтверждённых операций для экспорта."), 400
+
     data = "\ufeff" + output.getvalue()
     return send_file(io.BytesIO(data.encode("utf-8")), mimetype="text/csv; charset=utf-8",
                      as_attachment=True, download_name=f"ozon_operations_{date.today().isoformat()}.csv")
