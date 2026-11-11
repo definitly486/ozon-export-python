@@ -62,11 +62,11 @@
       </div>
     </section>
     <section class="panel table-panel">
-      <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="source-filter">Банк<select id="sourceFilter" aria-label="Показывать операции выбранного банка"><option value="all">Все банки</option><option value="ozon">Только Ozon</option><option value="psb">Только ПСБ</option></select></label><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
+      <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="source-filter">Банк<select id="sourceFilter" aria-label="Показывать операции выбранного банка"><option value="all">Все банки</option><option value="ozon">Только Ozon</option><option value="psb">Только ПСБ</option></select></label><label class="source-filter">Сортировка<select id="sortOrder" aria-label="Сортировка операций"><option value="date-desc">По дате (сначала новые)</option><option value="credit-desc">Кредит: по убыванию</option></select></label><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
       <div class="table-wrap"><table><thead><tr><th></th><th>Дата</th><th>Банк</th><th>Название</th><th>Цель</th><th>Категория</th><th class="num">Дебет</th><th class="num">Кредит</th><th class="num">Итого</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="empty">Сначала войдите в Ozon Банк и загрузите выписку.</td></tr></tbody><tfoot id="totals"></tfoot></table></div>
     </section>
     <div id="message" role="status" class="message"></div>
     <footer>Данные обрабатываются локально на вашем компьютере. Не публикуйте папку профиля Firefox и файлы сессии.</footer>
   </main>
-  <script src="/static/app.js?v=20261111-4"></script>
+  <script src="/static/app.js?v=20261111-5"></script>
 </body></html>
