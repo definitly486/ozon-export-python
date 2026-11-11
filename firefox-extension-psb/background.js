@@ -261,8 +261,38 @@ async function capturePsbCsv() {
       item = findExact("Скачать в CSV");
     }
     if (!item) throw new Error("Пункт «Скачать в CSV» не появился в меню ПСБ.");
-    click(item);
-    return await captured;
+
+    // Some PSB versions download CSV through a direct link instead of
+    // fetch/XHR/Blob creation. Read that same authenticated URL in page
+    // context while preserving the bank's normal download click.
+    const directLink = item.matches("a[href]") ? item : item.closest("a[href]") || item.querySelector("a[href]");
+    if (directLink && directLink.href) {
+      fetch(directLink.href, { credentials: "include", cache: "no-store" })
+        .then(response => {
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          return response.text();
+        })
+        .then(inspectText)
+        .catch(() => {});
+    }
+
+    // Also catch links created dynamically by the bank after the menu click.
+    const captureDownloadLink = event => {
+      const anchor = event.target && event.target.closest
+        ? event.target.closest("a[href]") : null;
+      if (!anchor || !anchor.href) return;
+      fetch(anchor.href, { credentials: "include", cache: "no-store" })
+        .then(response => response.ok ? response.text() : "")
+        .then(inspectText)
+        .catch(() => {});
+    };
+    document.addEventListener("click", captureDownloadLink, true);
+    try {
+      click(item);
+      return await captured;
+    } finally {
+      document.removeEventListener("click", captureDownloadLink, true);
+    }
   } finally {
     URL.createObjectURL = originalCreate;
     window.fetch = originalFetch;
