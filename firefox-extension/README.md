@@ -46,3 +46,9 @@ The extension now works from any Firefox tab. On click it creates a temporary in
 ### Automatic dashboard refresh after import
 
 If Ozon Bill is already open in a browser tab, it checks the local database status every 3 seconds. When the Firefox extension finishes an import and the database sync timestamp changes, the currently selected date range is reloaded automatically. No manual page refresh is needed. Polling pauses while the dashboard tab is hidden and resumes when it becomes visible.
+
+### Автозаполнение постоянного PIN-кода
+
+Откройте настройки расширения в `about:addons` → **Ozon Bill — автоматическая выгрузка** → **Настройки**. Один раз введите постоянный четырёхзначный PIN и сохраните его. Расширение хранит PIN в `browser.storage.local` профиля Firefox и автоматически заполняет четыре отдельных однозначных поля на странице Ozon Банка. Оно не нажимает кнопку подтверждения.
+
+**Предупреждение:** PIN хранится локально без шифрования. Не включайте функцию на общем или недоверенном компьютере и защитите профиль Firefox и учётную запись ОС. Если PIN изменится, сохраните новый в настройках расширения. Чтобы удалить сохранённый PIN, очистите данные расширения в настройках Firefox.
