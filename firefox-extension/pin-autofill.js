@@ -74,7 +74,17 @@
     if (!fields?.length) {
       if (!reportedMissingFields) {
         reportedMissingFields = true;
-        report("ozon-pin-fields-not-found");
+        // PIN UI may live in another frame. Give sibling frames time to
+        // autofill before reporting a page-wide failure.
+        setTimeout(async () => {
+          try {
+            const { ozonPinAutofillAt = 0 } = await browser.storage.local.get("ozonPinAutofillAt");
+            if (Date.now() - Number(ozonPinAutofillAt) < 15000) return;
+            report("ozon-pin-fields-not-found", { frameUrl: location.href });
+          } catch (_) {
+            report("ozon-pin-fields-not-found", { frameUrl: location.href });
+          }
+        }, 2500);
       }
       return;
     }
@@ -87,7 +97,8 @@
         setValue(fields[0], ozonPin);
         fields[0].focus();
       }
-      report("ozon-pin-autofilled", { fieldCount: fields.length });
+      await browser.storage.local.set({ ozonPinAutofillAt: Date.now() });
+      report("ozon-pin-autofilled", { fieldCount: fields.length, frameUrl: location.href });
     } finally { filling = false; }
   }
   let scheduled = false;
