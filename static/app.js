@@ -168,7 +168,9 @@ async function checkDatabaseForExternalChanges() {
   const stats = await response.json();
   const currentSync = stats.last_sync_at || null;
   const currentTotal = Number(stats.total || 0);
-  const changed = (currentSync && lastDatabaseSync && currentSync !== lastDatabaseSync) ||
+  // Compare values directly, including null -> timestamp transitions. This
+  // also catches imports that only update existing rows without changing COUNT(*).
+  const changed = currentSync !== lastDatabaseSync ||
     (lastDatabaseTotal !== null && currentTotal !== lastDatabaseTotal);
   lastDatabaseSync = currentSync;
   lastDatabaseTotal = currentTotal;
