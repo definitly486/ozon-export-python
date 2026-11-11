@@ -92,10 +92,16 @@ def database_stats():
     return jsonify(stats)
 
 
+@app.get("/api/health")
+def health_check():
+    """Lightweight connectivity check for the Firefox extension."""
+    return jsonify(ok=True, service="ozon-bill")
+
+
 @app.post("/api/ozon/auto-sync")
 def auto_sync_ozon():
     """Receive operation JSON from the Firefox extension running locally."""
-    payload = request.get_json(silent=True)
+    payload = request.get_json(force=True, silent=True)
     if payload is None:
         return jsonify(error="Firefox не передал корректный JSON."), 400
     try:
