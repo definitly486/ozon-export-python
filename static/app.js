@@ -21,9 +21,38 @@ $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
 $('loadPsb').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('psbFile').files[0];if(!file){$('psbFile').click();msg('Сначала выберите CSV-выписку ПСБ.');return;}const form=new FormData();form.append('file',file);const url=`/api/psb/import?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;msg('Импортирую выписку ПСБ…');$('loadPsb').disabled=true;try{const r=await fetch(url,{method:'POST',body:form});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать выписку ПСБ');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const u=j.sync||{};msg(`ПСБ: добавлено ${u.new||0}, уже было ${u.unchanged||0}, обновлено ${u.updated||0}. В общей истории за период: ${j.count} операций (ПСБ: ${j.summary?.psb||0}).`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('loadPsb').disabled=false;}};
 $('load').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('sourceFile').files[0];if(!file){$('sourceFile').click();msg('Сначала выберите JSON-файл, скачанный из Ozon.');return;}msg('Синхронизирую локальную базу…');$('load').disabled=true;try{const payload=JSON.parse(await file.text());const url=`/api/sync?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать операции');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const s=j.summary||{};const u=j.sync||{};msg(`База обновлена: новых ${u.new||0}, изменённых ${u.updated||0}, без изменений ${u.unchanged||0}, пропущено без ID ${u.skipped||0}. В периоде подтверждённых операций: ${j.count}; HOLD исключено: ${s.excluded_hold||0}; прочих неподтверждённых: ${s.excluded_other||0}.`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('load').disabled=false;}};
+async function copyBookmarkletCode(text, fieldId, buttonId, bankLabel) {
+ const field=$(fieldId), button=$(buttonId), original=button.textContent;
+ button.disabled=true;
+ try {
+  if(navigator.clipboard && window.isSecureContext) {
+   await navigator.clipboard.writeText(text);
+  } else {
+   throw new Error('Clipboard API unavailable');
+  }
+  button.textContent='Скопировано ✓';
+  msg(`Код закладки ${bankLabel} скопирован. Создайте закладку Firefox и вставьте код в поле «Адрес».`);
+ } catch(error) {
+  field.focus();
+  field.select();
+  let copied=false;
+  try { copied=document.execCommand('copy'); } catch(_) {}
+  if(copied) {
+   button.textContent='Скопировано ✓';
+   msg(`Код закладки ${bankLabel} скопирован. Вставьте его в поле «Адрес» новой закладки Firefox.`);
+  } else {
+   button.textContent='Код выделен — Ctrl+C';
+   msg(`Автоматическое копирование недоступно. Код ${bankLabel} выделен: нажмите Ctrl+C.`);
+  }
+ }
+ button.disabled=false;
+ clearTimeout(button._copyResetTimer);
+ button._copyResetTimer=setTimeout(()=>{button.textContent=original;},2500);
+}
+
 const bookmarklet = `javascript:(async()=>{try{const api='https://finance.ozon.ru/apps/pfm/api/operations/groupOperationsV3';let cursor=null,items=[],page=0;do{const r=await fetch(api,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({cursorPagination:{cursor,perPage:100},filter:{categories:[],effect:'EFFECT_UNKNOWN',pfmTags:[],accountTokens:[],timeZone:'Europe/Moscow'}})});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();const g=j?.data?.me?.client?.groupOperationsV3;if(!g||!Array.isArray(g.items))throw Error('Неожиданный ответ API');items.push(...g.items);cursor=g.cursors?.next??null;page++;if(page>=500)break;}while(cursor);const blob=new Blob([JSON.stringify({items},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ozon_operations_raw.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);alert('Готово: скачано операций '+items.length);}catch(e){alert('Не удалось выгрузить операции: '+e.message);}})();`;
 $('bookmarklet').value=bookmarklet;
-$('copyBookmarklet').onclick=async()=>{try{await navigator.clipboard.writeText(bookmarklet);msg('Код закладки скопирован. Создайте новую закладку Firefox и вставьте его в поле «Адрес».');}catch(e){$('bookmarklet').focus();$('bookmarklet').select();msg('Выделил код — скопируйте его вручную сочетанием Ctrl+C.');}};
+$('copyBookmarklet').onclick=()=>copyBookmarkletCode(bookmarklet,'bookmarklet','copyBookmarklet','Ozon');
 
 $('search').oninput=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
 $('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};$('none').onclick=()=>{selected.clear();render();};
@@ -48,4 +77,4 @@ refreshDbStatus();
 
 const psbBookmarklet = `javascript:(()=>{const norm=s=>String(s||'').replace(/\\s+/g,' ').trim();const visible=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';};const find=t=>{const all=[...document.querySelectorAll('button,a,[role="button"],[tabindex],div,span')].filter(e=>visible(e)&&norm(e.innerText||e.textContent)===t);all.sort((a,b)=>{const score=e=>(e.matches('button,a,[role="button"]')?0:1)+(e.querySelector('*')?1:0);return score(a)-score(b);});return all[0];};const click=e=>(e.closest('button,a,[role="button"]')||e).click();const csv=find('Скачать в CSV');if(csv){click(csv);return;}const open=find('Получить выписку');if(!open){alert('Не найдена кнопка «Получить выписку». Откройте страницу выписки ПСБ и попробуйте ещё раз.');return;}click(open);setTimeout(()=>{const item=find('Скачать в CSV');if(!item){alert('Меню выписки открылось, но пункт «Скачать в CSV» не найден. Откройте меню вручную и нажмите закладку ещё раз.');return;}click(item);},500);})();`;
 $('psbBookmarklet').value=psbBookmarklet;
-$('copyPsbBookmarklet').onclick=async()=>{try{await navigator.clipboard.writeText(psbBookmarklet);msg('Код закладки ПСБ скопирован. Создайте новую закладку Firefox и вставьте его в поле «Адрес».');}catch(e){$('psbBookmarklet').focus();$('psbBookmarklet').select();msg('Выделил код закладки ПСБ — скопируйте его вручную сочетанием Ctrl+C.');}};
+$('copyPsbBookmarklet').onclick=()=>copyBookmarkletCode(psbBookmarklet,'psbBookmarklet','copyPsbBookmarklet','ПСБ');
