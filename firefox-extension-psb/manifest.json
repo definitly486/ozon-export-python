@@ -1,15 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Ozon Bill — импорт ПСБ",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Импортирует выписку ПСБ из авторизованной вкладки Firefox с автоматическим восстановлением закрытой вкладки.",
-  "permissions": ["tabs", "scripting", "notifications", "storage"],
+  "permissions": [
+    "tabs",
+    "scripting",
+    "notifications",
+    "storage"
+  ],
   "host_permissions": [
     "https://ib.psbank.ru/*",
     "http://127.0.0.1:8765/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "action": {
     "default_title": "Импортировать выписку ПСБ"
