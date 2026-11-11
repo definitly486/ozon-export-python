@@ -100,7 +100,9 @@ def list_operations():
 @app.get("/api/stats")
 def database_stats():
     stats = get_stats()
-    stats["psb_total"] = get_psb_stats()["total"]
+    psb_stats = get_psb_stats()
+    stats["psb_total"] = psb_stats["total"]
+    stats["psb_last_sync_at"] = psb_stats["last_sync_at"]
     return jsonify(stats)
 
 
