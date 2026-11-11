@@ -30,10 +30,20 @@ browser.runtime.onMessage.addListener(message => {
     case "ozon-pin-autofilled": {
       lastPinAutofillAt = Date.now();
       const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
-      return notify("Ozon — PIN подставлен",
-        "Сохранённый PIN автоматически введён в " + count +
-        ". Вход не подтверждается автоматически. Фрейм: " +
-        String(message.frameUrl || "неизвестен"), "OK");
+      // PIN confirmation is deliberately left to the user. Bring the
+      // authentication tab to the foreground so the user can see and confirm it.
+      return (async () => {
+        await notify("Ozon — PIN подставлен",
+          "PIN введён в " + count +
+          ". Вкладка банка открыта для подтверждения: нажмите кнопку входа на странице Ozon. " +
+          "Фрейм: " + String(message.frameUrl || "неизвестен"), "OK");
+        const tabId = message?.tabId;
+        if (Number.isInteger(tabId)) {
+          await browser.tabs.update(tabId, { active: true }).catch(error =>
+            console.warn("Не удалось активировать вкладку Ozon для подтверждения PIN:", error)
+          );
+        }
+      })();
     }
     default:
       return;
