@@ -2,7 +2,45 @@ const STATEMENT_URL = "https://ib.psbank.ru/lk/products/cards/account/2680291440
 const LOCAL_HEALTH = "http://127.0.0.1:8765/api/health";
 const LOCAL_API = "http://127.0.0.1:8765/api/psb/auto-sync";
 const NOTIFICATION_ID = "ozon-bill-psb-sync";
+const KEEPER_TAB_KEY = "psbKeeperTabId";
+const KEEPER_URL_KEY = "psbKeeperUrl";
 let running = false;
+let restoringKeeper = false;
+
+async function rememberKeeperTab(tab) {
+  if (!tab || !tab.id || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
+  await browser.storage.local.set({
+    [KEEPER_TAB_KEY]: tab.id,
+    [KEEPER_URL_KEY]: tab.url
+  });
+}
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url && tab.url && tab.url.startsWith("https://ib.psbank.ru/")) {
+    browser.storage.local.get(KEEPER_TAB_KEY).then(data => {
+      if (data[KEEPER_TAB_KEY] === tabId) rememberKeeperTab(tab).catch(() => {});
+    }).catch(() => {});
+  }
+});
+
+browser.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+  if (removeInfo.isWindowClosing || restoringKeeper) return;
+  try {
+    const saved = await browser.storage.local.get([KEEPER_TAB_KEY, KEEPER_URL_KEY]);
+    if (saved[KEEPER_TAB_KEY] !== tabId || !saved[KEEPER_URL_KEY]) return;
+    restoringKeeper = true;
+    const restored = await browser.tabs.create({
+      url: saved[KEEPER_URL_KEY],
+      active: false,
+      pinned: true
+    });
+    await browser.storage.local.set({ [KEEPER_TAB_KEY]: restored.id });
+  } catch (error) {
+    console.warn("Could not restore PSB session tab:", error);
+  } finally {
+    restoringKeeper = false;
+  }
+});
 
 async function notify(title, message, badge = "...") {
   try {
@@ -174,6 +212,7 @@ async function importPsb() {
       throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
     tabId = bankTab.id;
+    await rememberKeeperTab(bankTab);
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
@@ -182,6 +221,8 @@ async function importPsb() {
       await notify("ПСБ — открываю выписку", "Перехожу к выписке в той же авторизованной вкладке. Новая вкладка не создаётся.");
       await browser.tabs.update(tabId, { url: STATEMENT_URL });
       await waitForTab(tabId);
+      const currentTab = await browser.tabs.get(tabId);
+      await rememberKeeperTab(currentTab);
     }
 
     await notify("ПСБ — получаю выписку", "Получаю CSV в существующей вкладке ПСБ.");
