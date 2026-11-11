@@ -11,11 +11,11 @@ async function notify(title, message, badge = "!") {
     console.error("Не удалось обновить индикатор расширения:", error);
   }
 
-  // Desktop notification is an additional signal, not the only feedback channel.
+  // Firefox WebExtensions does not implement notifications.update().
+  // Creating a notification with the same ID replaces the previous one.
   try {
     const options = { type: "basic", iconUrl: browser.runtime.getURL("icon.svg"), title, message };
-    const updated = await browser.notifications.update(NOTIFICATION_ID, options);
-    if (!updated) await browser.notifications.create(NOTIFICATION_ID, options);
+    await browser.notifications.create(NOTIFICATION_ID, options);
   } catch (error) {
     console.error("Не удалось показать уведомление Firefox:", error);
   }
