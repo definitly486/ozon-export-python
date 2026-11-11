@@ -3,11 +3,25 @@ const NOTIFICATION_ID = "ozon-bill-sync";
 
 // Content script reports PIN autofill from the temporary Ozon tab.
 // Show this in Firefox notifications so it remains visible after redirects.
-browser.runtime.onMessage.addListener((message, sender) => {
-  if (message?.type !== "ozon-pin-autofilled") return;
-  const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
-  return notify("Ozon — PIN подставлен",
-    "Сохранённый PIN автоматически введён в " + count + ". Ожидаю завершения входа…", "OK");
+browser.runtime.onMessage.addListener(message => {
+  switch (message?.type) {
+    case "ozon-pin-screen-detected":
+      return notify("Ozon — обнаружен экран PIN",
+        "Страница запроса PIN найдена. Проверяю сохранённый код и поля ввода…", "...");
+    case "ozon-pin-not-configured":
+      return notify("Ozon — PIN не сохранён",
+        "Откройте настройки расширения и сохраните четырёхзначный PIN.", "!");
+    case "ozon-pin-fields-not-found":
+      return notify("Ozon — поля PIN не найдены",
+        "Экран PIN обнаружен, но поля ввода не распознаны. Автозаполнение не выполнено.", "!");
+    case "ozon-pin-autofilled": {
+      const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
+      return notify("Ozon — PIN подставлен",
+        "Сохранённый PIN автоматически введён в " + count + ". Вход не подтверждается автоматически.", "OK");
+    }
+    default:
+      return;
+  }
 });
 
 async function notify(title, message, badge = "!") {
