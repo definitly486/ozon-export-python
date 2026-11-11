@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Ozon Bill — автоматическая выгрузка",
   "version": "1.0.0",
-  "description": "Получает операции Ozon из авторизованной вкладки Firefox и передаёт их в локальный Ozon Bill.",
+  "description": "Получает операции Ozon в фоновой вкладке Firefox и передаёт их в локальный Ozon Bill.",
   "permissions": ["activeTab", "scripting", "notifications"],
   "host_permissions": [
     "https://finance.ozon.ru/*",
