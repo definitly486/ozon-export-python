@@ -63,8 +63,8 @@ def _combined_transactions(start: date, end: date):
     items = ozon_rows + psb_rows
     items.sort(key=lambda row: row.get("time", ""), reverse=True)
     return items, {
-        "confirmed": len(items),
-        "excluded_hold": ozon_summary["excluded_hold"],
+        "confirmed": ozon_summary["confirmed"],
+        "hold": ozon_summary["hold"],
         "excluded_other": ozon_summary["excluded_other"],
         "psb": len(psb_rows),
     }
