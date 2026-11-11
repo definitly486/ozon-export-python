@@ -11,6 +11,7 @@ const eventNames = {
   "import-started": "Начат импорт операций",
   "import-ozon-opened": "Открыта фоновая вкладка Ozon",
   "import-ozon-loaded": "Страница Ozon загружена",
+  "import-api-request": "Отправлен запрос списка операций",
   "import-data-received": "Операции получены от Ozon",
   "import-saving": "Сохранение операций в локальную базу",
   "import-success": "Импорт завершён успешно",
