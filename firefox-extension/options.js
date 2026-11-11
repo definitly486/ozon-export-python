@@ -11,6 +11,8 @@ const eventNames = {
   "import-started": "Начат импорт операций",
   "import-ozon-opened": "Открыта фоновая вкладка Ozon",
   "import-ozon-loaded": "Страница Ozon загружена",
+  "import-bank-tab-reused": "Используется уже открытая вкладка Ozon Банка",
+  "import-bank-tab-created": "Создана новая фоновая вкладка Ozon Банка",
   "import-api-request": "Отправлен запрос списка операций",
   "import-data-received": "Операции получены от Ozon",
   "import-saving": "Сохранение операций в локальную базу",
