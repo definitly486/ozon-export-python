@@ -6,7 +6,7 @@
 </head>
 <body>
   <main class="container">
-    <header><div><div class="eyebrow">OZON БАНК · ПСБ</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><span class="pill">FreeBSD / Python</span></header>
+    <header><div><div class="eyebrow">OZON БАНК · ПСБ</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><div class="header-tools"><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div></header>
     <section class="panel controls">
       <div class="actions"><button id="connect" class="primary">Открыть Ozon Банк в Firefox</button><span id="status" class="muted">Используется обычный Firefox, без Selenium</span></div>
       <div class="dates"><label>Дата начала<input id="start" type="date"></label><label>Дата окончания<input id="end" type="date"></label><label class="file-label">Файл операций JSON<input id="sourceFile" type="file" accept=".json,application/json"></label><button id="load" class="primary">Обновить базу и показать</button></div>
