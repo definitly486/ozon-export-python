@@ -6,10 +6,15 @@
 </head>
 <body>
   <main class="container">
-    <header><div><div class="eyebrow">OZON БАНК</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><span class="pill">FreeBSD / Python</span></header>
+    <header><div><div class="eyebrow">OZON БАНК · ПСБ</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><span class="pill">FreeBSD / Python</span></header>
     <section class="panel controls">
       <div class="actions"><button id="connect" class="primary">Открыть Ozon Банк в Firefox</button><span id="status" class="muted">Используется обычный Firefox, без Selenium</span></div>
       <div class="dates"><label>Дата начала<input id="start" type="date"></label><label>Дата окончания<input id="end" type="date"></label><label class="file-label">Файл операций JSON<input id="sourceFile" type="file" accept=".json,application/json"></label><button id="load" class="primary">Обновить базу и показать</button></div>
+      <div class="dates psb-import">
+        <label class="file-label">CSV-выписка ПСБ<input id="psbFile" type="file" accept=".csv,text/csv"></label>
+        <button id="loadPsb" class="primary" type="button">Импортировать выписку ПСБ</button>
+        <span class="hint">ПСБ загружается отдельно; импорт Ozon работает как раньше.</span>
+      </div>
       <div id="dbStatus" class="hint">Загружаю состояние локальной базы…</div>
       <div class="bookmarklet-box">
         <b>Ежедневное обновление</b>
@@ -26,7 +31,7 @@
     </section>
     <section class="panel table-panel">
       <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
-      <div class="table-wrap"><table><thead><tr><th></th><th>Дата</th><th>Название</th><th>Цель</th><th>Категория</th><th class="num">Дебет</th><th class="num">Кредит</th><th class="num">Итого</th></tr></thead><tbody id="rows"><tr><td colspan="8" class="empty">Сначала войдите в Ozon Банк и загрузите выписку.</td></tr></tbody><tfoot id="totals"></tfoot></table></div>
+      <div class="table-wrap"><table><thead><tr><th></th><th>Дата</th><th>Банк</th><th>Название</th><th>Цель</th><th>Категория</th><th class="num">Дебет</th><th class="num">Кредит</th><th class="num">Итого</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="empty">Сначала войдите в Ozon Банк и загрузите выписку.</td></tr></tbody><tfoot id="totals"></tfoot></table></div>
     </section>
     <div id="message" role="status" class="message"></div>
     <footer>Данные обрабатываются локально на вашем компьютере. Не публикуйте папку профиля Firefox и файлы сессии.</footer>
