@@ -1,14 +1,14 @@
 # Firefox extension — Ozon Bill auto import
 
 ## What it does
-Click the extension button while signed in at `https://finance.ozon.ru`. The extension reads the operation history through the same authenticated browser session and sends the JSON directly to the local Flask app at `http://127.0.0.1:8765`. It does not ask for or store your password, cookies, or access tokens.
+Click the extension button from any tab. The extension opens `https://finance.ozon.ru/lk` in a temporary inactive tab, uses the existing Firefox login session to read operation history, sends JSON to the local Flask app at `http://127.0.0.1:8765`, and closes the temporary tab. You do not need to keep the bank page open. It does not ask for or store your password, cookies, or access tokens.
 
 ## Install temporarily in Firefox
 1. Start Ozon Bill locally (`./run.sh`), so `127.0.0.1:8765` is available.
 2. Open `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on…** and choose this folder's `manifest.json`.
 4. Open `https://finance.ozon.ru/lk` and sign in normally.
-5. Click the Ozon Bill extension icon. Firefox notifications and a badge on the extension icon show each stage: fetching from Ozon, saving to the database, and the final result. The badge changes to `...` while working, `OK` on success, and `!` on error. If desktop notifications are disabled, the badge and extension tooltip still show the status.
+5. Click the Ozon Bill extension icon from any tab. The extension will open the bank in a background tab automatically; you do not need to open it yourself. Firefox notifications and a badge on the extension icon show each stage: fetching from Ozon, saving to the database, and the final result. The badge changes to `...` while working, `OK` on success, and `!` on error. If desktop notifications are disabled, the badge and extension tooltip still show the status.
 6. On success, the final notification shows how many operations were received, added, updated, unchanged, skipped (if any), and the total number stored in the database. If nothing new was added, it explicitly says the data is already up to date.
 7. On failure, the notification shows the error reason. Check that Ozon Bill is running and that Firefox is signed in to the correct Ozon Bank account.
 8. The app's current date filter is refreshed by reloading the page or changing the date range.
@@ -16,11 +16,11 @@ Click the extension button while signed in at `https://finance.ozon.ru`. The ext
 Temporary add-ons are removed when Firefox restarts; load it again. For permanent installation the extension must be packaged and signed by Mozilla.
 
 ## Security and limitations
-- Only the active `finance.ozon.ru` tab is read after the user clicks the extension button.
-- Requests are made from the page's MAIN world with its existing authenticated session.
+- A temporary inactive `finance.ozon.ru` tab is opened only after the user clicks the extension button, then closed after the import.
+- Requests are made from the page's MAIN world with the existing Firefox authenticated session. If the Ozon session has expired, sign in to Ozon again and retry.
 - The extension sends operation JSON only to the loopback address `127.0.0.1:8765`.
 - This relies on Ozon's private web-app endpoint, not a documented public API. Ozon may change it at any time.
-- The extension does not automate login, bypass MFA, or run in the background.
+- The extension does not automate login or bypass MFA. The data request is performed in a temporary background tab, not by silently bypassing the bank's login.
 
 
 ### Если расширение сообщает, что Ozon Bill недоступен
@@ -36,3 +36,8 @@ Temporary add-ons are removed when Firefox restarts; load it again. For permanen
 ### Исправление CORS и уведомлений Firefox
 
 Если в консоли есть `CORS Missing Allow Origin` для `127.0.0.1:8765`, обновите приложение из этой ветки и перезапустите `./run.sh`. Локальный Flask API теперь возвращает CORS-заголовки для запросов расширения. Также исправлено использование API уведомлений: Firefox не поддерживает `browser.notifications.update()`, поэтому расширение повторно создаёт уведомление с тем же идентификатором.
+
+
+### Import without manually opening Ozon Bank
+
+The extension now works from any Firefox tab. On click it creates a temporary inactive tab at `https://finance.ozon.ru/lk`, waits for the page to load, retrieves operations using the existing signed-in Firefox session, and closes that tab. If Ozon asks you to sign in or complete MFA, do that manually and retry. The local Ozon Bill app must still be running at `127.0.0.1:8765`.
