@@ -41,18 +41,6 @@
         <p class="hint">Для ПСБ используется существующая вкладка — новая не создаётся, чтобы не вызывать повторный запрос пароля. Расширение не хранит пароль, PIN, cookies или токены. После перезапуска Firefox временное дополнение нужно загрузить снова.</p>
       </div>
       <div id="dbStatus" class="hint">Загружаю состояние локальной базы…</div>
-      <div class="bookmarklet-box">
-        <b>Ежедневное обновление</b>
-        <ol>
-          <li>Откройте Ozon Банк в обычном Firefox и войдите в аккаунт.</li>
-          <li>Создайте закладку Firefox с адресом из поля ниже (скопируйте весь код в поле «Адрес»).</li>
-          <li>На вкладке Ozon нажмите эту закладку. Браузер скачает JSON со всей доступной историей.</li>
-          <li>Выберите скачанный JSON выше и нажмите «Обновить базу и показать». Новые операции добавятся, изменившиеся обновятся, повторы не создадутся.</li>
-        </ol>
-        <textarea id="bookmarklet" readonly spellcheck="false"></textarea>
-        <button id="copyBookmarklet" type="button">Скопировать код закладки</button>
-        <p class="hint">SQLite хранит локальную историю между запусками. Повторная полная выгрузка безопасна: записи сопоставляются по lastOperationId, а HOLD обновится, если позднее станет CONFIRMED. Саму выгрузку по-прежнему нужно запускать вручную в авторизованном Firefox.</p>
-      </div>
     </section>
     <section class="panel table-panel">
       <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="source-filter">Банк<select id="sourceFilter" aria-label="Показывать операции выбранного банка"><option value="all">Все банки</option><option value="ozon">Только Ozon</option><option value="psb">Только ПСБ</option></select></label><label class="source-filter">Сортировка<select id="sortOrder" aria-label="Сортировка операций"><option value="date-desc">По дате (сначала новые)</option><option value="credit-desc">Кредит: по убыванию</option></select></label><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
@@ -61,5 +49,5 @@
     <div id="message" role="status" class="message"></div>
     <footer>Данные обрабатываются локально на вашем компьютере. Не публикуйте папку профиля Firefox и файлы сессии.</footer>
   </main>
-  <script src="/static/app.js?v=20261111-6"></script>
+  <script src="/static/app.js?v=20261111-7"></script>
 </body></html>
