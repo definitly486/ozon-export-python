@@ -356,7 +356,6 @@ async function importPsb() {
     if (!response.ok || payload.ok !== true) throw new Error(payload.error || "Локальное приложение отклонило выписку.");
 
     const sync = payload.sync || {};
-    await storageSet({ [SYNC_ACTIVE_KEY]: false });
     await notify("ПСБ — импорт завершён",
       "Добавлено: " + (sync.new || 0) +
       " · Обновлено: " + (sync.updated || 0) +
