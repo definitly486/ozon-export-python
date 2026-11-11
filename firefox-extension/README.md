@@ -40,12 +40,12 @@ Temporary add-ons are removed when Firefox restarts; load it again. For permanen
 
 ### Import without manually opening Ozon Bank
 
-The extension now works from any Firefox tab. On click it creates a temporary inactive tab at `https://finance.ozon.ru/lk`, waits for the page to load, retrieves operations using the existing signed-in Firefox session, and closes that tab. If Ozon asks you to sign in or complete MFA, do that manually and retry. The local Ozon Bill app must still be running at `127.0.0.1:8765`.
+The extension now works from any Firefox tab. On click it creates a temporary inactive tab at `https://finance.ozon.ru/lk`, waits for the page to load, retrieves operations using the existing signed-in Firefox session, and closes that tab. If Ozon asks you to sign in or complete MFA, the extension brings the temporary tab to the foreground and waits up to three minutes for the return to `finance.ozon.ru`. The extension now has host access to Ozon login subdomains so Firefox can report the redirect URL reliably. After updating, reload the add-on in `about:debugging` and approve any new host-access prompt. The local Ozon Bill app must still be running at `127.0.0.1:8765`.
 
 
 ### Automatic dashboard refresh after import
 
-If Ozon Bill is already open in a browser tab, it checks the local database status every 3 seconds. When the Firefox extension finishes an import and the database sync timestamp changes, the currently selected date range is reloaded automatically. No manual page refresh is needed. Polling pauses while the dashboard tab is hidden and resumes when it becomes visible.
+If Ozon Bill is already open in a browser tab, it checks the local database status every 3 seconds. When the Firefox extension finishes an import and the database sync timestamp changes (including the first sync after the page was opened), or the row count changes, the currently selected date range is reloaded automatically. No manual page refresh is needed. Polling pauses while the dashboard tab is hidden and resumes when it becomes visible.
 
 ### Автозаполнение постоянного PIN-кода
 
