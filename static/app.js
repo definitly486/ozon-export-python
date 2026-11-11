@@ -9,8 +9,8 @@ $('end').max = DEFAULT_END;
 try {
  const savedStart = localStorage.getItem('ozonBillStartDate');
  const savedEnd = localStorage.getItem('ozonBillEndDate');
- $('start').value = savedStart && /^\\d{4}-\\d{2}-\\d{2}$/.test(savedStart) ? savedStart : DEFAULT_START;
- $('end').value = savedEnd && /^\\d{4}-\\d{2}-\\d{2}$/.test(savedEnd) && savedEnd <= DEFAULT_END ? savedEnd : DEFAULT_END;
+ $('start').value = savedStart && /^\d{4}-\d{2}-\d{2}$/.test(savedStart) ? savedStart : DEFAULT_START;
+ $('end').value = savedEnd && /^\d{4}-\d{2}-\d{2}$/.test(savedEnd) && savedEnd <= DEFAULT_END ? savedEnd : DEFAULT_END;
 } catch (_) {
  $('start').value = DEFAULT_START;
  $('end').value = DEFAULT_END;
@@ -86,8 +86,13 @@ function schedulePeriodRefresh() {
  clearTimeout(dateRefreshTimer);
  dateRefreshTimer=setTimeout(reloadPeriodFromDatabase,250);
 }
-$('start').addEventListener('change',()=>{saveSelectedPeriod();schedulePeriodRefresh();});
-$('end').addEventListener('change',()=>{saveSelectedPeriod();schedulePeriodRefresh();});
+['start','end'].forEach(id=>{
+ const field=$(id);
+ field.addEventListener('input',saveSelectedPeriod);
+ field.addEventListener('change',()=>{saveSelectedPeriod();schedulePeriodRefresh();});
+ field.addEventListener('blur',saveSelectedPeriod);
+});
+window.addEventListener('pagehide',saveSelectedPeriod);
 
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
