@@ -281,8 +281,12 @@ async function importPsb() {
     const psbTabs = await browser.tabs.query({ url: "https://ib.psbank.ru/*" });
     const keeperData = await storageGet(KEEPER_TAB_KEY);
     const savedKeeperTabId = keeperData[KEEPER_TAB_KEY];
-    const bankTab = (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
-      psbTabs.find(tab => tab.active) || psbTabs[0];
+    // The user normally clicks the extension while viewing the freshly
+    // authenticated PSB tab. Prefer that active tab over a previously saved
+    // keeper ID, which may now point to an expired login session.
+    const bankTab = psbTabs.find(tab => tab.active) ||
+      (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
+      psbTabs[0];
     if (!bankTab) {
       throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
