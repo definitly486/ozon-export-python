@@ -104,6 +104,61 @@ $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
 $('connectPsb').onclick=async()=>{msg('Открываю ПСБ в обычном браузере…');try{const r=await fetch('/api/connect/psb',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте ПСБ в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
 $('load').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('sourceFile').files[0];if(!file){$('sourceFile').click();msg('Сначала выберите JSON-файл, скачанный из Ozon.');return;}msg('Синхронизирую локальную базу…');$('load').disabled=true;try{const payload=JSON.parse(await file.text());const url=`/api/sync?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать операции');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const s=j.summary||{};const u=j.sync||{};msg(`База обновлена: новых ${u.new||0}, изменённых ${u.updated||0}, без изменений ${u.unchanged||0}, пропущено без ID ${u.skipped||0}. В периоде: ${j.count} операций, HOLD: ${s.hold||0}; прочих неподтверждённых: ${s.excluded_other||0}.`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('load').disabled=false;}};
+
+
+$('search').oninput=render;
+$('sourceFilter').onchange=render;
+$('sortOrder').onchange=render;
+$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
+$('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};
+$('none').onclick=()=>{selected.clear();render();};
+$('export').onclick=async()=>{
+ const items=operations.filter((_,i)=>selected.has(i) && operations[i].status!=='GROUP_OPERATION_HOLD');
+ try {
+  const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+  if(!r.ok){const j=await r.json();throw Error(j.error||'Ошибка экспорта');}
+  const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`bank_operations_${ymd(new Date())}.csv`;a.click();URL.revokeObjectURL(url);
+  msg(`Экспортировано строк: ${items.length}`);
+ } catch(e){msg(e.message,true);}
+};
+
+let lastDatabaseSync=null,lastDatabaseTotal=null,databasePollInProgress=false,databasePollTimer=null;
+async function refreshDbStatus(stats) {
+ try {
+  if(!stats){const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Не удалось прочитать базу');stats=await response.json();}
+  const last=stats.last_sync_at?new Date(stats.last_sync_at).toLocaleString():'ещё не выполнялась';
+  $('dbStatus').textContent=`Локальная база SQLite: Ozon — ${stats.total||0}, ПСБ — ${stats.psb_total||0}. Подтверждённых Ozon: ${stats.confirmed||0}, HOLD: ${stats.hold||0}. Последнее обновление: ${last}.`;
+ } catch(e){$('dbStatus').textContent='Не удалось получить состояние локальной базы: '+e.message;}
+}
+async function checkDatabaseForExternalChanges(){
+ if(databasePollInProgress||document.hidden)return;
+ databasePollInProgress=true;
+ try{
+  const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const stats=await response.json(),sync=stats.last_sync_at||null,total=Number(stats.total||0);
+  const changed=sync!==lastDatabaseSync||(lastDatabaseTotal!==null&&total!==lastDatabaseTotal);
+  lastDatabaseSync=sync;lastDatabaseTotal=total;
+  if(changed){await reloadPeriodFromDatabase();lastDatabaseSync=sync;lastDatabaseTotal=total;}
+  await refreshDbStatus(stats);
+ }catch(e){$('dbStatus').textContent='Автообновление: ошибка проверки локальной базы ('+e.message+').';}
+ finally{databasePollInProgress=false;}
+}
+async function initializeDashboard(){
+ try{
+  const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const stats=await response.json();
+  lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);
+  await refreshDbStatus(stats);
+ }catch(e){await refreshDbStatus();}
+ await reloadPeriodFromDatabase();
+ if(databasePollTimer)clearInterval(databasePollTimer);
+ databasePollTimer=setInterval(checkDatabaseForExternalChanges,2000);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDatabaseForExternalChanges();});
+
 // Initialize the dashboard before starting external-import polling.
 initializeDashboard();
 
