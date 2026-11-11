@@ -210,7 +210,7 @@ async function capturePsbCsv() {
           today.getFullYear()
         ].join(".");
         const minDate = range.getAttribute("min") || range.getAttribute("data-min-date") || "";
-        const startValue = /^\\d{2}\\.\\d{2}\\.\\d{4}$/.test(minDate) ? minDate : "01.01.2000";
+        const startValue = /^\d{2}\.\d{2}\.\d{4}$/.test(minDate) ? minDate : "01.01.2000";
         setNativeValue(range, startValue + " – " + endValue);
         await wait(1800);
         return "combined-date-range";
