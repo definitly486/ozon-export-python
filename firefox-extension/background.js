@@ -77,15 +77,29 @@ browser.action.onClicked.addListener(async tab => {
     if (payload.items.length === 0) throw new Error("Ozon вернул пустой список операций. Проверьте, что открыт нужный счёт.");
 
     await notify("Ozon Bill — сохраняю операции", "Получено из Ozon: " + payload.items.length + ". Записываю в локальную базу…", "...");
+    // Check the local server separately so connection errors are distinguishable
+    // from failures while sending the operation payload.
+    try {
+      const health = await fetch("http://127.0.0.1:8765/api/health", { method: "GET", cache: "no-store" });
+      if (!health.ok) throw new Error("HTTP " + health.status);
+      const healthData = await health.json();
+      if (healthData.ok !== true) throw new Error("неожиданный ответ сервера");
+    } catch (error) {
+      throw new Error("Ozon Bill недоступен на 127.0.0.1:8765. Запустите ./run.sh и проверьте адрес http://127.0.0.1:8765/. Если страница не открывается, пришлите вывод терминала. Подробности: " + (error.message || error));
+    }
+
     let response;
     try {
+      // text/plain avoids the CORS preflight OPTIONS request in Firefox.
+      // Flask parses the JSON body explicitly in /api/ozon/auto-sync.
       response = await fetch(LOCAL_API, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(payload),
+        cache: "no-store"
       });
     } catch (error) {
-      throw new Error("Не удалось подключиться к Ozon Bill на 127.0.0.1:8765. Запустите приложение командой ./run.sh и проверьте, что оно открывается в браузере по адресу http://127.0.0.1:8765/. Подробности: " + (error.message || error));
+      throw new Error("Ozon Bill отвечает на проверку, но не принимает данные импорта. Перезагрузите расширение Firefox и повторите попытку. Подробности: " + (error.message || error));
     }
     let result;
     try {
