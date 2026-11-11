@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Ozon Bill — импорт ПСБ",
+  "version": "1.0.0",
+  "description": "Загружает CSV-выписку ПСБ из открытой авторизованной вкладки Firefox в локальный Ozon Bill.",
+  "permissions": ["activeTab", "scripting", "notifications"],
+  "host_permissions": ["https://ib.psbank.ru/*", "http://127.0.0.1:8765/*"],
+  "background": { "scripts": ["background.js"] },
+  "action": { "default_title": "Импортировать выписку ПСБ в Ozon Bill" },
+  "browser_specific_settings": {
+    "gecko": { "id": "ozon-bill-psb-import@local" }
+  }
+}
