@@ -139,6 +139,7 @@ $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(
 
 
 let lastDatabaseSync = null;
+let lastDatabaseTotal = null;
 let databasePollInProgress = false;
 let databasePollTimer = null;
 
@@ -149,7 +150,6 @@ async function refreshDbStatus(stats) {
    if (!response.ok) throw Error('Не удалось прочитать базу');
    stats = await response.json();
   }
-  if (stats.last_sync_at) lastDatabaseSync = stats.last_sync_at;
   const last = stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : 'ещё не выполнялась';
   $('dbStatus').textContent = `Локальная база SQLite: Ozon — ${stats.total}, ПСБ — ${stats.psb_total||0}. Подтверждённых Ozon: ${stats.confirmed}, HOLD: ${stats.hold}. Последнее обновление: ${last}.`;
  } catch (e) {
@@ -157,40 +157,53 @@ async function refreshDbStatus(stats) {
  }
 }
 
-// The extension commits its import to SQLite before returning success.
-// Poll after the initial dashboard load, and compare the DB sync marker.
+// Detect external imports by both the sync timestamp and row count. The
+// second signal also catches timestamp problems in older/local DB versions.
 async function checkDatabaseForExternalChanges() {
  if (databasePollInProgress || document.hidden) return;
  databasePollInProgress = true;
  try {
-  const response = await fetch('/api/stats', {cache:'no-store'});
-  if (!response.ok) return;
+  const response = await fetch('/api/stats?_=' + Date.now(), {cache:'no-store'});
+  if (!response.ok) throw Error('HTTP ' + response.status);
   const stats = await response.json();
   const currentSync = stats.last_sync_at || null;
-  if (currentSync && lastDatabaseSync && currentSync !== lastDatabaseSync) {
-   lastDatabaseSync = currentSync;
+  const currentTotal = Number(stats.total || 0);
+  const changed = (currentSync && lastDatabaseSync && currentSync !== lastDatabaseSync) ||
+    (lastDatabaseTotal !== null && currentTotal !== lastDatabaseTotal);
+  lastDatabaseSync = currentSync;
+  lastDatabaseTotal = currentTotal;
+  if (changed) {
    await reloadPeriodFromDatabase();
-   // reloadPeriodFromDatabase also updates the status, but retain the latest
-   // marker from the exact poll response to avoid races with another request.
+   // Reload may return its own stats snapshot; use the latest poll as baseline.
    lastDatabaseSync = currentSync;
-  } else if (currentSync && !lastDatabaseSync) {
-   lastDatabaseSync = currentSync;
+   lastDatabaseTotal = currentTotal;
   }
-  refreshDbStatus(stats);
- } catch (_) {
-  // A temporary polling failure should not interrupt normal table interaction.
+  await refreshDbStatus(stats);
+ } catch (error) {
+  const status = $('dbStatus');
+  if (status) status.textContent = 'Автообновление: ошибка проверки локальной базы (' + error.message + ').';
  } finally {
   databasePollInProgress = false;
  }
 }
 
 async function initializeDashboard() {
- // Establish the initial marker before polling. The first table load follows;
- // any import occurring during startup is included in that load.
- await refreshDbStatus();
+ try {
+  const response = await fetch('/api/stats?_=' + Date.now(), {cache:'no-store'});
+  if (response.ok) {
+   const stats = await response.json();
+   lastDatabaseSync = stats.last_sync_at || null;
+   lastDatabaseTotal = Number(stats.total || 0);
+   await refreshDbStatus(stats);
+  } else {
+   await refreshDbStatus();
+  }
+ } catch (_) {
+  await refreshDbStatus();
+ }
  await reloadPeriodFromDatabase();
  if (databasePollTimer) clearInterval(databasePollTimer);
- databasePollTimer = setInterval(checkDatabaseForExternalChanges, 1500);
+ databasePollTimer = setInterval(checkDatabaseForExternalChanges, 2000);
 }
 document.addEventListener('visibilitychange', () => {
  if (!document.hidden) checkDatabaseForExternalChanges();
