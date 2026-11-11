@@ -29,27 +29,6 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }).catch(() => {});
 });
 
-// Move the existing authenticated tab into a minimized window without reloading it.
-async function keepBankTabInBackgroundWindow(tab) {
-  if (!tab || !tab.id || !browser.windows) return tab;
-  const currentWindow = await browser.windows.get(tab.windowId);
-  if (currentWindow && currentWindow.state === "minimized") return tab;
-  const backgroundWindow = await browser.windows.create({
-    url: "about:blank", focused: false, state: "minimized", type: "normal"
-  });
-  try {
-    const moved = await browser.tabs.move(tab.id, { windowId: backgroundWindow.id, index: 0 });
-    const movedTab = Array.isArray(moved) ? moved[0] : moved;
-    const blankTabs = await browser.tabs.query({ windowId: backgroundWindow.id });
-    for (const blank of blankTabs) {
-      if (blank.id !== tab.id) await browser.tabs.remove(blank.id).catch(() => {});
-    }
-    return await browser.tabs.get(movedTab.id);
-  } catch (error) {
-    await browser.windows.remove(backgroundWindow.id).catch(() => {});
-    throw new Error("Не удалось перенести исходную вкладку ПСБ в свёрнутое окно. Вкладка не закрывалась. " + (error.message || error));
-  }
-}
 async function notify(title, message, badge = "...") {
   try {
     await browser.action.setBadgeBackgroundColor({
@@ -125,7 +104,7 @@ async function capturePsbCsv() {
   // page (often because closing the original tab invalidated its session).
   const passwordField = [...document.querySelectorAll('input[type="password"]')].find(visible);
   if (passwordField || /login|auth|signin/i.test(location.pathname)) {
-    throw new Error("ПСБ открыл страницу входа вместо выписки. Авторизация в восстановленной вкладке не сохранилась. Откройте ПСБ, войдите в аккаунт и запустите импорт повторно, не закрывая эту вкладку.");
+    throw new Error("ПСБ открыл страницу входа вместо выписки. Сессия в выбранной вкладке недействительна. Откройте ПСБ, войдите в аккаунт и запустите импорт повторно, не закрывая эту вкладку.");
   }
   const findExact = label => {
     const nodes = [...document.querySelectorAll("button,a,[role='button'],[tabindex],div,span")]
@@ -307,15 +286,16 @@ async function importPsb() {
     if (!bankTab) {
       throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
-    const backgroundTab = await keepBankTabInBackgroundWindow(bankTab);
-    tabId = backgroundTab.id;
-    await rememberKeeperTab(backgroundTab);
+    // Keep the authenticated tab in its original window: PSB may bind its session to this tab/window context.
+    // tabs.update navigates it in the background and does not focus it.
+    tabId = bankTab.id;
+    await rememberKeeperTab(bankTab);
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
       bankTab.url.includes("/about/statement");
     if (!alreadyOnStatement) {
-      await notify("ПСБ — открываю выписку", "Исходная вкладка перенесена в свёрнутое окно. Используется та же авторизованная вкладка.");
+      await notify("ПСБ — открываю выписку", "Используется исходная авторизованная вкладка без переноса в другое окно.");
       await browser.tabs.update(tabId, { url: STATEMENT_URL });
       await waitForTab(tabId);
       const currentTab = await browser.tabs.get(tabId);
