@@ -172,7 +172,8 @@ async function initializeDashboard(){
   const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const stats=await response.json();
-  lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);\n  lastPsbSync=stats.psb_last_sync_at||null;lastPsbTotal=Number(stats.psb_total||0);
+  lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);
+  lastPsbSync=stats.psb_last_sync_at||null;lastPsbTotal=Number(stats.psb_total||0);
   await refreshDbStatus(stats);
  }catch(e){await refreshDbStatus();}
  await reloadPeriodFromDatabase();
