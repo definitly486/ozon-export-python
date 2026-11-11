@@ -17,11 +17,10 @@ class OzonApiError(RuntimeError):
 
 
 class OzonClient:
-    """Converts operations exported from the user's ordinary Firefox session.
+    """Converts confirmed and held Ozon operations for display.
 
-    Only confirmed account movements are returned for the money CSV.
-    Holds and other non-confirmed states remain in the source JSON but are
-    excluded from the transaction list.
+    HOLD rows are visible in the statement but remain excluded from money CSV
+    export and from confirmed-movement totals.
     """
 
     @staticmethod
@@ -119,7 +118,7 @@ class OzonClient:
                 "В JSON-файле не найден список операций. Скачайте файл повторно из личного кабинета."
             )
 
-        summary = {"confirmed": 0, "excluded_hold": 0, "excluded_other": 0}
+        summary = {"confirmed": 0, "hold": 0, "excluded_other": 0}
         transactions: list[dict[str, Any]] = []
 
         for item in items:
@@ -136,15 +135,15 @@ class OzonClient:
                 continue
 
             status = item.get("status")
-            if status != CONFIRMED_STATUS:
-                if status == HOLD_STATUS:
-                    summary["excluded_hold"] += 1
-                else:
-                    summary["excluded_other"] += 1
+            if status not in (CONFIRMED_STATUS, HOLD_STATUS):
+                summary["excluded_other"] += 1
                 continue
 
             transactions.append(cls._to_transaction(item))
-            summary["confirmed"] += 1
+            if status == HOLD_STATUS:
+                summary["hold"] += 1
+            else:
+                summary["confirmed"] += 1
 
         transactions.sort(key=lambda row: row.get("time", ""), reverse=True)
         return transactions, summary
