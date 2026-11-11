@@ -198,7 +198,7 @@ async function capturePsbCsv() {
         String(today.getDate()).padStart(2,"0")].join("-");
       const start = dateInputs[0], end = dateInputs[1];
       const minDate = start.getAttribute("min") || start.getAttribute("data-min-date") || "";
-      const validMinDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(minDate) ? minDate : "";
+      const validMinDate = /^\d{4}-\d{2}-\d{2}$/.test(minDate) ? minDate : "";
       const startValue = start.type === "date" ? (validMinDate || "2000-01-01") :
         (validMinDate ? validMinDate.split("-").reverse().join(".") : "01.01.2000");
       const endValue = end.type === "date" ? endIso :
