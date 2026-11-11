@@ -29,23 +29,16 @@
           <button id="load" class="primary import-action">Обновить базу и показать</button>
           <span class="import-note">Добавить новые операции Ozon в локальную базу</span>
         </div>
-        <div class="import-row">
-          <label class="file-label">Выписка ПСБ (CSV)<input id="psbFile" type="file" accept=".csv,text/csv"></label>
-          <button id="loadPsb" class="primary import-action" type="button">Импортировать выписку ПСБ</button>
-          <span class="import-note">ПСБ загружается отдельно от Ozon</span>
-        </div>
       </div>
       <div class="bookmarklet-box">
-        <b>Автоматическое скачивание выписки ПСБ</b>
+        <b>Автоматический импорт ПСБ через расширение Firefox</b>
         <ol>
-          <li>Откройте в обычном Firefox страницу выписки нужной карты ПСБ и войдите в личный кабинет.</li>
-          <li>Выберите период выписки.</li>
-          <li>Создайте закладку Firefox с кодом ниже. На странице ПСБ нажмите эту закладку: она откроет меню выписки (если оно закрыто) и выберет «Скачать в CSV».</li>
-          <li>Выберите скачанный CSV в блоке выше и нажмите «Импортировать выписку ПСБ».</li>
+          <li>Войдите в ПСБ в обычном Firefox. После входа можно оставаться на главной странице личного кабинета.</li>
+          <li>Откройте <code>about:debugging#/runtime/this-firefox</code>, нажмите «Загрузить временное дополнение…» и выберите <code>firefox-extension-psb/manifest.json</code> из папки проекта.</li>
+          <li>Нажмите значок расширения Firefox. Оно перейдёт к выписке в той же авторизованной вкладке, скачает CSV и передаст операции в локальную базу.</li>
+          <li>Дождитесь уведомления о результате. Таблица Ozon Bill обновится автоматически.</li>
         </ol>
-        <textarea id="psbBookmarklet" readonly spellcheck="false"></textarea>
-        <button id="copyPsbBookmarklet" type="button">Скопировать код закладки ПСБ</button>
-        <p class="hint">Закладка не читает и не сохраняет пароль, токен или cookies. Скачивание выполняет сам интернет-банк в вашей авторизованной вкладке. Период предварительно задайте на странице ПСБ.</p>
+        <p class="hint">Для ПСБ используется существующая вкладка — новая не создаётся, чтобы не вызывать повторный запрос пароля. Расширение не хранит пароль, PIN, cookies или токены. После перезапуска Firefox временное дополнение нужно загрузить снова.</p>
       </div>
       <div id="dbStatus" class="hint">Загружаю состояние локальной базы…</div>
       <div class="bookmarklet-box">
