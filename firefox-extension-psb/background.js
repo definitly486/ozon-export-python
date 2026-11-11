@@ -165,19 +165,26 @@ async function importPsb() {
       throw new Error("Локальный Ozon Bill недоступен. Запустите ./run.sh. " + (error.message || error));
     }
 
-    // Reuse the existing bank tab. Creating a new tab can invalidate PSB's
-    // tab-bound authentication/sessionStorage and trigger another password prompt.
+    // Reuse the already authenticated PSB tab. The normal landing page after
+    // login is /lk/products/summary; navigate that SAME tab to the statement.
+    // Do not create a new tab: PSB may bind authentication state to the tab.
     const psbTabs = await browser.tabs.query({ url: "https://ib.psbank.ru/*" });
-    const statementTab = psbTabs.find(tab =>
-      tab.url && tab.url.includes("/lk/products/cards/account/") &&
-      tab.url.includes("/about/statement")
-    );
-    if (!statementTab) {
-      throw new Error("Не найдена открытая вкладка выписки ПСБ. Один раз откройте выписку и войдите в банк вручную в Firefox. После входа оставьте эту вкладку открытой — расширение будет использовать её, не создавая новых страниц.");
+    const bankTab = psbTabs.find(tab => tab.active) || psbTabs[0];
+    if (!bankTab) {
+      throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
-    tabId = statementTab.id;
+    tabId = bankTab.id;
 
-    await notify("ПСБ — получаю выписку", "Работаю в существующей авторизованной вкладке. Новая страница не открывается.");
+    const alreadyOnStatement = bankTab.url &&
+      bankTab.url.includes("/lk/products/cards/account/") &&
+      bankTab.url.includes("/about/statement");
+    if (!alreadyOnStatement) {
+      await notify("ПСБ — открываю выписку", "Перехожу к выписке в той же авторизованной вкладке. Новая вкладка не создаётся.");
+      await browser.tabs.update(tabId, { url: STATEMENT_URL });
+      await waitForTab(tabId);
+    }
+
+    await notify("ПСБ — получаю выписку", "Получаю CSV в существующей вкладке ПСБ.");
     const result = await browser.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
