@@ -19,7 +19,7 @@ function render() {
 }
 $('rows').addEventListener('change',e=>{if(e.target.matches('input[data-index]')){const i=Number(e.target.dataset.index);e.target.checked?selected.add(i):selected.delete(i);render();}});
 $('connect').onclick=async()=>{msg('Открываю Ozon в обычном браузере…');try{const r=await fetch('/api/connect',{method:'POST'});const j=await r.json();if(!r.ok)throw Error(j.error);$('status').textContent='Откройте Ozon в обычном Firefox';msg(j.message);}catch(e){msg(e.message,true);}};
-$('load').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('sourceFile').files[0];if(!file){$('sourceFile').click();msg('Сначала выберите JSON-файл, скачанный из Ozon.');return;}msg('Импортирую операции…');$('load').disabled=true;try{const payload=JSON.parse(await file.text());const url=`/api/import?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать операции');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const s=j.summary||{};msg(`Подтверждённых операций: ${j.count}. Исключено HOLD: ${s.excluded_hold||0}; прочих неподтверждённых: ${s.excluded_other||0}.`);}catch(e){msg(e.message,true);}finally{$('load').disabled=false;}};
+$('load').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('sourceFile').files[0];if(!file){$('sourceFile').click();msg('Сначала выберите JSON-файл, скачанный из Ozon.');return;}msg('Импортирую операции…');$('load').disabled=true;try{const payload=JSON.parse(await file.text());const url=`/api/sync?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать операции');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const s=j.summary||{};const u=j.sync||{};msg(`База обновлена: новых ${u.new||0}, изменённых ${u.updated||0}, без изменений ${u.unchanged||0}, пропущено без ID ${u.skipped||0}. В периоде подтверждённых операций: ${j.count}; HOLD исключено: ${s.excluded_hold||0}; прочих неподтверждённых: ${s.excluded_other||0}.`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('load').disabled=false;}};
 const bookmarklet = `javascript:(async()=>{try{const api='https://finance.ozon.ru/apps/pfm/api/operations/groupOperationsV3';let cursor=null,items=[],page=0;do{const r=await fetch(api,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({cursorPagination:{cursor,perPage:100},filter:{categories:[],effect:'EFFECT_UNKNOWN',pfmTags:[],accountTokens:[],timeZone:'Europe/Moscow'}})});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();const g=j?.data?.me?.client?.groupOperationsV3;if(!g||!Array.isArray(g.items))throw Error('Неожиданный ответ API');items.push(...g.items);cursor=g.cursors?.next??null;page++;if(page>=500)break;}while(cursor);const blob=new Blob([JSON.stringify({items},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ozon_operations_raw.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);alert('Готово: скачано операций '+items.length);}catch(e){alert('Не удалось выгрузить операции: '+e.message);}})();`;
 $('bookmarklet').value=bookmarklet;
 $('copyBookmarklet').onclick=async()=>{try{await navigator.clipboard.writeText(bookmarklet);msg('Код закладки скопирован. Создайте новую закладку Firefox и вставьте его в поле «Адрес».');}catch(e){$('bookmarklet').focus();$('bookmarklet').select();msg('Выделил код — скопируйте его вручную сочетанием Ctrl+C.');}};
@@ -27,3 +27,19 @@ $('copyBookmarklet').onclick=async()=>{try{await navigator.clipboard.writeText(b
 $('search').oninput=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
 $('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};$('none').onclick=()=>{selected.clear();render();};
 $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(i));try{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});if(!r.ok){const j=await r.json();throw Error(j.error);}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`ozon_operations_${ymd(new Date())}.csv`;a.click();URL.revokeObjectURL(url);msg(`Экспортировано строк: ${items.length}`);}catch(e){msg(e.message,true);}};
+
+
+async function refreshDbStatus(stats) {
+ try {
+  if (!stats) {
+   const response = await fetch('/api/stats');
+   if (!response.ok) throw Error('Не удалось прочитать базу');
+   stats = await response.json();
+  }
+  const last = stats.last_sync_at ? new Date(stats.last_sync_at).toLocaleString() : 'ещё не выполнялась';
+  $('dbStatus').textContent = `Локальная база SQLite: ${stats.total} операций (подтверждённых: ${stats.confirmed}, HOLD: ${stats.hold}). Последнее обновление: ${last}.`;
+ } catch (e) {
+  $('dbStatus').textContent = 'Не удалось получить состояние локальной базы: ' + e.message;
+ }
+}
+refreshDbStatus();
