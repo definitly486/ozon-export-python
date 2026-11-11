@@ -7,6 +7,7 @@ import webbrowser
 from datetime import date
 from flask import Flask, jsonify, render_template, request, send_file
 from ozon_client import OzonClient, OzonApiError, CONFIRMED_STATUS
+from ozon_storage import get_all_operations, get_stats, sync_operations
 
 app = Flask(__name__)
 OZON_URL = "https://finance.ozon.ru/lk"
@@ -28,6 +29,12 @@ def connect():
     )
 
 
+@app.get("/api/stats")
+def database_stats():
+    return jsonify(get_stats())
+
+
+@app.post("/api/sync")
 @app.post("/api/import")
 def import_operations():
     payload = request.get_json(silent=True)
@@ -38,10 +45,22 @@ def import_operations():
         end = date.fromisoformat(request.args.get("end", ""))
         if start > end:
             return jsonify(error="Дата начала позже даты окончания."), 400
-        items, summary = OzonClient.convert_export_with_summary(payload, start, end)
-        return jsonify(items=items, count=len(items), summary=summary)
-    except ValueError:
-        return jsonify(error="Укажите корректный период."), 400
+
+        sync_summary = sync_operations(payload)
+        # Read the complete local history after upsert. This also means a
+        # HOLD operation can become CONFIRMED on a later daily import.
+        stored_items = get_all_operations()
+        items, summary = OzonClient.convert_export_with_summary(stored_items, start, end)
+        return jsonify(
+            items=items,
+            count=len(items),
+            summary=summary,
+            sync=sync_summary,
+            database=get_stats(),
+        )
+    except ValueError as exc:
+        message = str(exc) or "Укажите корректный период."
+        return jsonify(error=message), 400
     except OzonApiError as exc:
         return jsonify(error=str(exc)), 400
 
