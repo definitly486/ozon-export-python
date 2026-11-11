@@ -106,6 +106,26 @@ $('connectPsb').onclick=async()=>{msg('Открываю ПСБ в обычном
 $('load').onclick=async()=>{if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты периода.',true);return;}const file=$('sourceFile').files[0];if(!file){$('sourceFile').click();msg('Сначала выберите JSON-файл, скачанный из Ozon.');return;}msg('Синхронизирую локальную базу…');$('load').disabled=true;try{const payload=JSON.parse(await file.text());const url=`/api/sync?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'Не удалось импортировать операции');operations=j.items;selected=new Set(operations.map((_,i)=>i));render();const s=j.summary||{};const u=j.sync||{};msg(`База обновлена: новых ${u.new||0}, изменённых ${u.updated||0}, без изменений ${u.unchanged||0}, пропущено без ID ${u.skipped||0}. В периоде: ${j.count} операций, HOLD: ${s.hold||0}; прочих неподтверждённых: ${s.excluded_other||0}.`);refreshDbStatus(j.database);}catch(e){msg(e.message,true);}finally{$('load').disabled=false;}};
 
 
+$('psbLoad').onclick=async()=>{
+ const file=$('psbSourceFile').files[0];
+ if(!file){$('psbSourceFile').click();msg('Выберите CSV-выписку ПСБ.');return;}
+ if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты отображаемого периода.',true);return;}
+ const button=$('psbLoad');button.disabled=true;msg('Импортирую CSV-выписку ПСБ…');
+ try{
+  const form=new FormData();form.append('file',file);
+  const url=`/api/psb/import?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;
+  const response=await fetch(url,{method:'POST',body:form,cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Не удалось импортировать выписку ПСБ');
+  await reloadPeriodFromDatabase();
+  await refreshDbStatus(data.database);
+  const sync=data.sync||{},psb=data.psb||{};
+  msg(`ПСБ: новых ${sync.new||0}, обновлено ${sync.updated||0}, без изменений ${sync.unchanged||0}. Всего операций ПСБ в базе: ${psb.database_total||0}. Импортировано строк из файла: ${psb.imported_from_file||0}.`);
+  $('psbSourceFile').value='';
+ }catch(error){msg(error.message,true);}
+ finally{button.disabled=false;}
+};
+
 $('search').oninput=render;
 $('sourceFilter').onchange=render;
 $('sortOrder').onchange=render;
