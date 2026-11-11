@@ -58,6 +58,21 @@ def _combined_transactions(start: date, end: date):
     }
 
 
+@app.get("/api/operations")
+def list_operations():
+    try:
+        start, end = _requested_period()
+        items, summary = _combined_transactions(start, end)
+        return jsonify(
+            items=items,
+            count=len(items),
+            summary=summary,
+            database={**get_stats(), "psb_total": get_psb_stats()["total"]},
+        )
+    except (ValueError, OzonApiError) as exc:
+        return jsonify(error=str(exc)), 400
+
+
 @app.get("/api/stats")
 def database_stats():
     stats = get_stats()
