@@ -30,20 +30,10 @@ browser.runtime.onMessage.addListener((message, sender) => {
     case "ozon-pin-autofilled": {
       lastPinAutofillAt = Date.now();
       const count = Number(message.fieldCount) === 4 ? "четыре поля" : "поле";
-      // PIN confirmation is deliberately left to the user. Bring the
-      // authentication tab to the foreground so the user can see and confirm it.
-      return (async () => {
-        await notify("Ozon — PIN подставлен",
-          "PIN введён в " + count +
-          ". Вкладка банка открыта для подтверждения: нажмите кнопку входа на странице Ozon. " +
-          "Фрейм: " + String(message.frameUrl || "неизвестен"), "OK");
-        const tabId = sender?.tab?.id;
-        if (Number.isInteger(tabId)) {
-          await browser.tabs.update(tabId, { active: true }).catch(error =>
-            console.warn("Не удалось активировать вкладку Ozon для подтверждения PIN:", error)
-          );
-        }
-      })();
+      return notify("Ozon — PIN введён",
+        "PIN введён по одной цифре в " + count +
+        ". Ozon должен автоматически проверить код и выполнить вход; расширение ожидает завершения авторизации. " +
+        "Фрейм: " + String(message.frameUrl || "неизвестен"), "OK");
     }
     default:
       return;
@@ -211,8 +201,8 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       ". Разрешите расширению доступ к страницам ozon.ru и повторите импорт.");
   }
 
-  await notify("Ozon — ожидаю вход в банк",
-    "Если открыт экран PIN, дождитесь автоподстановки и вручную нажмите кнопку подтверждения/входа. Запрос операций начнётся после выхода со страницы авторизации.", "...");
+  await notify("Ozon — ожидаю автоматический вход",
+    "PIN вводится по одной цифре. Ozon должен автоматически проверить код; после завершения входа импорт продолжится без нажатия кнопки.", "...");
   // Quiet mode: keep the temporary Ozon tab in the background.
   // If interactive login is required, do not steal focus; report that the user
   // must sign in to Ozon manually and retry the import.
@@ -241,7 +231,7 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       inspect(changeInfo?.url || updatedTab?.url);
     };
     const timer = setTimeout(() =>
-      finish(new Error("Не дождался завершения входа в Ozon Банк за 3 минуты. Если PIN был подставлен, подтвердите вход вручную на странице банка и повторите импорт.")),
+      finish(new Error("Ozon не завершил автоматический вход за 3 минуты после ввода PIN. Проверьте, что код принят на странице банка, и повторите импорт.")),
       timeoutMs
     );
     // Also poll because some Ozon screens change routes with history APIs
