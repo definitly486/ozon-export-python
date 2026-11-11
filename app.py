@@ -13,6 +13,16 @@ from psb_importer import PsbStatementError, convert_psb_operations, parse_psb_cs
 from psb_storage import get_all_psb_operations, get_psb_stats, sync_psb_operations
 
 app = Flask(__name__)
+
+@app.after_request
+def add_extension_cors_headers(response):
+    """Allow the local Firefox extension to call this loopback-only app."""
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Max-Age"] = "600"
+    return response
+
 OZON_URL = "https://finance.ozon.ru/lk"
 PSB_URL = "https://ib.psbank.ru/login"
 
