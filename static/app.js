@@ -8,7 +8,16 @@ const money = n => Number(n || 0).toLocaleString('ru-RU', {minimumFractionDigits
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isOzon = r => [r.name,r.category,r.purpose].some(v => /\bozon\b/i.test(String(v || '')));
 function msg(text, error=false) { $('message').textContent=text; $('message').className='message'+(error?' error':''); }
-function filtered() { const q=$('search').value.trim().toLowerCase(); return operations.map((r,i)=>({r,i})).filter(({r}) => (!q || [r.date_local,r.name,r.purpose,r.category,r.debit,r.credit,r.amount].some(v=>String(v??'').toLowerCase().includes(q))) && !($('exclude').checked && isOzon(r))); }
+const isPsb = r => /псб|psb/i.test(String(r.source || ''));
+function filtered() {
+ const q=$('search').value.trim().toLowerCase();
+ const source=$('sourceFilter').value;
+ return operations.map((r,i)=>({r,i})).filter(({r}) =>
+  (!q || [r.date_local,r.name,r.purpose,r.category,r.debit,r.credit,r.amount].some(v=>String(v??'').toLowerCase().includes(q))) &&
+  (source==='all' || (source==='psb' ? isPsb(r) : !isPsb(r))) &&
+  !($('exclude').checked && isOzon(r))
+ );
+}
 function render() {
  const list=filtered(); $('count').textContent=`Показано: ${list.length} · Выбрано: ${selected.size} · Всего: ${operations.length}`;
  $('export').disabled=selected.size===0;
@@ -54,7 +63,7 @@ const bookmarklet = `javascript:(async()=>{try{const api='https://finance.ozon.r
 $('bookmarklet').value=bookmarklet;
 $('copyBookmarklet').onclick=()=>copyBookmarkletCode(bookmarklet,'bookmarklet','copyBookmarklet','Ozon');
 
-$('search').oninput=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
+$('search').oninput=render;$('sourceFilter').onchange=render;$('exclude').onchange=()=>{if($('exclude').checked)operations.forEach((r,i)=>{if(isOzon(r))selected.delete(i);});render();};
 $('all').onclick=()=>{filtered().forEach(({i})=>selected.add(i));render();};$('none').onclick=()=>{selected.clear();render();};
 $('export').onclick=async()=>{const items=operations.filter((_,i)=>selected.has(i));try{const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});if(!r.ok){const j=await r.json();throw Error(j.error);}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`bank_operations_${ymd(new Date())}.csv`;a.click();URL.revokeObjectURL(url);msg(`Экспортировано строк: ${items.length}`);}catch(e){msg(e.message,true);}};
 
