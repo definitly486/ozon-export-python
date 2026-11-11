@@ -1,5 +1,9 @@
 (() => {
   let filling = false;
+  let reportedScreen = false;
+  let reportedMissingFields = false;
+  let reportedMissingPin = false;
+  const report = (type, extra = {}) => browser.runtime.sendMessage({ type, ...extra }).catch(() => {});
   const PIN_RE = /^\d{4}$/;
   const visible = el => {
     const r = el.getBoundingClientRect();
@@ -45,10 +49,28 @@
   }
   async function tryFill() {
     if (filling) return;
+    const promptVisible = /введите\\s+код-пароль\\s+для\\s+входа/i.test(document.body?.innerText || "");
+    if (!promptVisible) return;
+    if (!reportedScreen) {
+      reportedScreen = true;
+      report("ozon-pin-screen-detected");
+    }
     const { ozonPin } = await browser.storage.local.get("ozonPin");
-    if (!PIN_RE.test(ozonPin || "")) return;
+    if (!PIN_RE.test(ozonPin || "")) {
+      if (!reportedMissingPin) {
+        reportedMissingPin = true;
+        report("ozon-pin-not-configured");
+      }
+      return;
+    }
     const fields = findOzonPinFields() || findFallbackFields();
-    if (!fields?.length) return;
+    if (!fields?.length) {
+      if (!reportedMissingFields) {
+        reportedMissingFields = true;
+        report("ozon-pin-fields-not-found");
+      }
+      return;
+    }
     filling = true;
     try {
       if (fields.length === 4) {
@@ -60,10 +82,7 @@
       }
       // Report the result outside the temporary tab so the user can see it
       // even when the Ozon page redirects and the background tab is closed.
-      browser.runtime.sendMessage({
-        type: "ozon-pin-autofilled",
-        fieldCount: fields.length
-      }).catch(() => {});
+      report("ozon-pin-autofilled", { fieldCount: fields.length });
     } finally { filling = false; }
   }
   let scheduled = false;
