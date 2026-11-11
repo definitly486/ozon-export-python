@@ -178,6 +178,15 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
     try { return new URL(url).hostname === "finance.ozon.ru"; }
     catch (_) { return false; }
   };
+  // The bank login/PIN challenge is hosted on finance.ozon.ru too.
+  // A matching hostname alone does NOT mean the bank session is ready.
+  const isBankReady = url => {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === "finance.ozon.ru" &&
+        !parsed.pathname.startsWith("/apps/auth/");
+    } catch (_) { return false; }
+  };
   const isOzonDomain = url => {
     try {
       const host = new URL(url).hostname;
@@ -186,14 +195,14 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
   };
   const describeUrl = url => url || "URL пока недоступен (ожидаю завершения навигации)";
   const initial = await browser.tabs.get(tabId).catch(() => null);
-  if (initial?.url && isFinance(initial.url)) return;
+  if (initial?.url && isBankReady(initial.url)) return;
   if (initial?.url && !isOzonDomain(initial.url)) {
     throw new Error("Ozon открыл неожиданный адрес: " + initial.url +
       ". Разрешите расширению доступ к страницам ozon.ru и повторите импорт.");
   }
 
-  await notify("Ozon — требуется авторизация",
-    "Импорт выполняется в фоне. Если сессия истекла, войдите в Ozon вручную в обычной вкладке и повторите импорт.", "...");
+  await notify("Ozon — ожидаю вход в банк",
+    "Если открыт экран PIN, дождитесь автоподстановки и вручную нажмите кнопку подтверждения/входа. Запрос операций начнётся после выхода со страницы авторизации.", "...");
   // Quiet mode: keep the temporary Ozon tab in the background.
   // If interactive login is required, do not steal focus; report that the user
   // must sign in to Ozon manually and retry the import.
@@ -205,12 +214,13 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
+      clearInterval(poll);
       browser.tabs.onUpdated.removeListener(onUpdated);
       if (error) reject(error); else resolve();
     };
     const inspect = url => {
       if (!url) return; // Firefox may omit tab.url until host permission is granted.
-      if (isFinance(url)) finish();
+      if (isBankReady(url)) finish();
       else if (!isOzonDomain(url)) {
         finish(new Error("После входа Ozon открыл неожиданный адрес: " + url +
           ". Проверьте, что вход выполняется в официальном домене Ozon."));
@@ -221,9 +231,14 @@ async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
       inspect(changeInfo?.url || updatedTab?.url);
     };
     const timer = setTimeout(() =>
-      finish(new Error("Не дождался возврата в Ozon Банк за 3 минуты. Проверьте вход и повторите импорт.")),
+      finish(new Error("Не дождался завершения входа в Ozon Банк за 3 минуты. Если PIN был подставлен, подтвердите вход вручную на странице банка и повторите импорт.")),
       timeoutMs
     );
+    // Also poll because some Ozon screens change routes with history APIs
+    // without producing a normal tabs.onUpdated URL event.
+    const poll = setInterval(() => {
+      browser.tabs.get(tabId).then(tab => inspect(tab?.url)).catch(() => {});
+    }, 1000);
 
     // Subscribe before re-reading the tab to avoid missing a fast redirect.
     browser.tabs.onUpdated.addListener(onUpdated);
