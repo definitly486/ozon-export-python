@@ -1,7 +1,7 @@
 # Firefox extension — Ozon Bill auto import
 
 ## What it does
-Click the extension button from any tab. The extension opens `https://finance.ozon.ru/lk` in a temporary inactive tab, uses the existing Firefox login session to read operation history, sends JSON to the local Flask app at `http://127.0.0.1:8765`, and closes the temporary tab. You do not need to keep the bank page open. It does not ask for or store your password, cookies, or access tokens.
+Click the extension button from any tab. The extension opens `https://finance.ozon.ru/lk` in a temporary background tab without switching the active page, uses the existing Firefox login session to read operation history, sends JSON to the local Flask app at `http://127.0.0.1:8765`, and closes the temporary tab. If the Ozon session has expired and interactive login is required, the extension does not bring the bank tab to the foreground; sign in in a normal Firefox tab and retry. You do not need to keep the bank page open. It does not ask for or store your password, cookies, or access tokens.
 
 ## Install temporarily in Firefox
 1. Start Ozon Bill locally (`./run.sh`), so `127.0.0.1:8765` is available.
