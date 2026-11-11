@@ -130,13 +130,13 @@ function waitForTab(tabId, timeoutMs = 60000, settleMs = 1800) {
 // Executed in the PSB page context before clicking the bank's CSV control.
 // Captures CSV text from Blob URLs or Fetch/XHR responses; never reads cookies.
 async function capturePsbCsv() {
-  const normalize = value => String(value || "").replace(/\\s+/g, " ").trim();
+  const normalize = value => String(value || "").replace(/\s+/g, " ").trim();
   // PSB may vary column wording between account/card statements. Accept a
   // CSV header containing date and amount columns instead of two exact labels.
   const isCsv = value => {
     if (typeof value !== "string" || value.length < 20) return false;
-    const sample = value.replace(/^\\uFEFF/, "").slice(0, 5000).toLocaleLowerCase("ru-RU");
-    const looksDelimited = sample.split(/\\r?\\n/).slice(0, 5).some(line => /[;,\\t]/.test(line));
+    const sample = value.replace(/^\uFEFF/, "").slice(0, 5000).toLocaleLowerCase("ru-RU");
+    const looksDelimited = sample.split(/\r?\n/).slice(0, 5).some(line => /[;,\t]/.test(line));
     return looksDelimited && /дат[ауы]/i.test(sample) && /сумм/i.test(sample);
   };
   const visible = element => {
