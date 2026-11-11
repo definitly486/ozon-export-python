@@ -7,26 +7,46 @@ const KEEPER_URL_KEY = "psbKeeperUrl";
 let running = false;
 let restoringKeeper = false;
 
+// Storage is optional for the import itself. If Firefox has not granted the
+// storage API (for example, an old temporary add-on build is still loaded),
+// continue importing instead of aborting the bank operation.
+function hasLocalStorage() {
+  return typeof browser !== "undefined" &&
+    browser.storage && browser.storage.local;
+}
+
+async function storageGet(keys) {
+  if (!hasLocalStorage()) return {};
+  return browser.storage.local.get(keys);
+}
+
+async function storageSet(values) {
+  if (!hasLocalStorage()) return false;
+  await browser.storage.local.set(values);
+  return true;
+}
+
 async function rememberKeeperTab(tab) {
   if (!tab || !tab.id || !tab.url || !tab.url.startsWith("https://ib.psbank.ru/")) return;
-  await browser.storage.local.set({
+  await storageSet({
     [KEEPER_TAB_KEY]: tab.id,
     [KEEPER_URL_KEY]: tab.url
   });
 }
 
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!hasLocalStorage()) return;
   if (changeInfo.url && tab.url && tab.url.startsWith("https://ib.psbank.ru/")) {
-    browser.storage.local.get(KEEPER_TAB_KEY).then(data => {
+    storageGet(KEEPER_TAB_KEY).then(data => {
       if (data[KEEPER_TAB_KEY] === tabId) rememberKeeperTab(tab).catch(() => {});
     }).catch(() => {});
   }
 });
 
 browser.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
-  if (removeInfo.isWindowClosing || restoringKeeper) return;
+  if (!hasLocalStorage() || removeInfo.isWindowClosing || restoringKeeper) return;
   try {
-    const saved = await browser.storage.local.get([KEEPER_TAB_KEY, KEEPER_URL_KEY]);
+    const saved = await storageGet([KEEPER_TAB_KEY, KEEPER_URL_KEY]);
     if (saved[KEEPER_TAB_KEY] !== tabId || !saved[KEEPER_URL_KEY]) return;
     restoringKeeper = true;
     const restored = await browser.tabs.create({
@@ -34,7 +54,7 @@ browser.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
       active: false,
       pinned: true
     });
-    await browser.storage.local.set({ [KEEPER_TAB_KEY]: restored.id });
+    await storageSet({ [KEEPER_TAB_KEY]: restored.id });
   } catch (error) {
     console.warn("Could not restore PSB session tab:", error);
   } finally {
