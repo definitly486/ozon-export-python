@@ -80,18 +80,58 @@ async function waitForTabComplete(tabId, timeoutMs = 45000) {
   });
 }
 
+async function waitForFinanceReturn(tabId, timeoutMs = 180000) {
+  const isFinance = url => {
+    try { return new URL(url).hostname === "finance.ozon.ru"; }
+    catch (_) { return false; }
+  };
+  const isOzonDomain = url => {
+    try {
+      const host = new URL(url).hostname;
+      return host === "ozon.ru" || host.endsWith(".ozon.ru");
+    } catch (_) { return false; }
+  };
+  const tab = await browser.tabs.get(tabId);
+  if (isFinance(tab.url)) return;
+  if (!isOzonDomain(tab.url)) {
+    throw new Error("Ozon перенаправил на внешний адрес: " + (tab.url || "адрес неизвестен") +
+      ". Проверьте адрес и повторите импорт.");
+  }
+
+  await notify("Требуется вход в Ozon", "Завершите вход в открывшейся вкладке. После возврата в Ozon Банк импорт продолжится автоматически.", "...");
+  await browser.tabs.update(tabId, {active: true});
+  return new Promise((resolve, reject) => {
+    let finished = false;
+    const finish = error => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      browser.tabs.onUpdated.removeListener(onUpdated);
+      if (error) reject(error); else resolve();
+    };
+    const onUpdated = async (updatedId, changeInfo, updatedTab) => {
+      if (updatedId !== tabId || !changeInfo.url) return;
+      if (isFinance(changeInfo.url) || (updatedTab?.url && isFinance(updatedTab.url))) finish();
+      else if (!isOzonDomain(changeInfo.url)) finish(new Error("После входа Ozon перенаправил на неожиданный адрес: " + changeInfo.url));
+    };
+    const timer = setTimeout(() => finish(new Error("Время ожидания входа в Ozon истекло (3 минуты). Повторите импорт.")), timeoutMs);
+    browser.tabs.onUpdated.addListener(onUpdated);
+  });
+}
+
 async function getOperationsFromBackgroundTab() {
-  // Open a temporary inactive tab so the request runs in Ozon's authenticated
-  // page context. The user does not need to keep the bank page open.
+  // Open a temporary tab. If Ozon requires authentication, keep it open and
+  // let the user complete the normal login before continuing the import.
   const tab = await browser.tabs.create({
     url: "https://finance.ozon.ru/lk",
     active: false
   });
   try {
     await waitForTabComplete(tab.id);
+    await waitForFinanceReturn(tab.id);
     const current = await browser.tabs.get(tab.id);
     if (!current.url || new URL(current.url).hostname !== "finance.ozon.ru") {
-      throw new Error("Ozon перенаправил на другой адрес. Возможно, требуется повторный вход в банк.");
+      throw new Error("Не удалось вернуться в Ozon Банк. Текущий адрес: " + (current.url || "неизвестен"));
     }
     const injected = await browser.scripting.executeScript({
       target: { tabId: tab.id },
