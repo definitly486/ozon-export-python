@@ -145,6 +145,12 @@ async function capturePsbCsv() {
     return rect.width > 0 && rect.height > 0 &&
       style.visibility !== "hidden" && style.display !== "none";
   };
+  // A password field means the saved tab was redirected to the bank login
+  // page (often because closing the original tab invalidated its session).
+  const passwordField = [...document.querySelectorAll('input[type="password"]')].find(visible);
+  if (passwordField || /login|auth|signin/i.test(location.pathname)) {
+    throw new Error("ПСБ открыл страницу входа вместо выписки. Авторизация в восстановленной вкладке не сохранилась. Откройте ПСБ, войдите в аккаунт и запустите импорт повторно, не закрывая эту вкладку.");
+  }
   const findExact = label => {
     const nodes = [...document.querySelectorAll("button,a,[role='button'],[tabindex],div,span")]
       .filter(el => visible(el) && normalize(el.innerText || el.textContent) === label);
@@ -322,8 +328,9 @@ async function importPsb(preferredTabId = null) {
     const keeperData = await storageGet(KEEPER_TAB_KEY);
     const savedKeeperTabId = keeperData[KEEPER_TAB_KEY];
     const bankTab = (preferredTabId && psbTabs.find(tab => tab.id === preferredTabId)) ||
+      psbTabs.find(tab => tab.active) ||
       (savedKeeperTabId && psbTabs.find(tab => tab.id === savedKeeperTabId)) ||
-      psbTabs.find(tab => tab.active) || psbTabs[0];
+      psbTabs[0];
     if (!bankTab) {
       throw new Error("Не найдена открытая вкладка ПСБ. Сначала войдите в интернет-банк в Firefox, затем нажмите значок расширения.");
     }
