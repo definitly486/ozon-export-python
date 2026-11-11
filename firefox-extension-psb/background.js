@@ -318,24 +318,23 @@ async function importPsb() {
     // Reuse the already authenticated PSB tab. The normal landing page after
     // login is /lk/products/summary; navigate that SAME tab to the statement.
     // Do not create a new tab: PSB may bind authentication state to the tab.
-    const currentWindowTabs = await browser.tabs.query({ currentWindow: true });
-    const bankTab = currentWindowTabs.find(tab => tab.url && tab.url.startsWith("https://ib.psbank.ru/"));
+    const allTabs = await browser.tabs.query({});
+    const bankTab = allTabs.find(tab => tab.url && tab.url.startsWith("https://ib.psbank.ru/"));
     if (!bankTab) {
-      throw new Error("В этом окне Firefox не найдена вкладка ПСБ. Откройте банк, войдите в аккаунт и нажмите значок расширения ещё раз.");
+      throw new Error("Не найдена открытая вкладка ПСБ. Один раз войдите в интернет-банк в Firefox, оставьте вкладку открытой и повторите импорт.");
     }
     tabId = bankTab.id;
-    await browser.tabs.update(tabId, { active: true });
 
     const alreadyOnStatement = bankTab.url &&
       bankTab.url.includes("/lk/products/cards/account/") &&
       bankTab.url.includes("/about/statement");
     if (!alreadyOnStatement) {
-      await notify("ПСБ — открываю выписку", "Используется исходная авторизованная вкладка без переноса в другое окно.");
-      await browser.tabs.update(tabId, { url: STATEMENT_URL, active: true });
+      await notify("ПСБ — открываю выписку в фоне", "Текущая вкладка браузера останется активной.");
+      await browser.tabs.update(tabId, { url: STATEMENT_URL, active: false });
       await waitForTab(tabId);
     }
 
-    await notify("ПСБ — получаю выписку", "Получаю CSV в существующей вкладке ПСБ.");
+    await notify("ПСБ — получаю выписку в фоне", "Не переключаю браузер на вкладку банка.");
     const result = await browser.scripting.executeScript({
       target: { tabId },
       world: "MAIN",
