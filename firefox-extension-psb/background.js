@@ -285,7 +285,6 @@ async function capturePsbCsv() {
 async function importPsb() {
   if (running) return;
   running = true;
-  await storageSet({ [SYNC_ACTIVE_KEY]: true });
   let tabId = null;
   try {
     await notify("ПСБ — импорт", "Ищу уже открытую авторизованную вкладку выписки…");
