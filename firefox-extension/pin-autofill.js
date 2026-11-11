@@ -49,7 +49,7 @@
   }
   async function tryFill() {
     if (filling) return;
-    const promptVisible = /введите\\s+код-пароль\\s+для\\s+входа/i.test(document.body?.innerText || "");
+    const promptVisible = /введите\s+код-пароль\s+для\s+входа/i.test(document.body?.innerText || "");
     if (!promptVisible) return;
     if (!reportedScreen) {
       reportedScreen = true;
