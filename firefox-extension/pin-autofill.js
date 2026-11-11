@@ -9,7 +9,7 @@
     .filter(el => visible(el) && !el.disabled && !el.readOnly &&
       (el.maxLength === 1 || el.getAttribute("inputmode") === "numeric" ||
        /^(tel|number|password)$/i.test(el.type)) &&
-      !/search|email|text/i.test(el.type));
+      !/search|email/i.test(el.type));
   function setValue(el, value) {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     if (setter) setter.call(el, value); else el.value = value;
