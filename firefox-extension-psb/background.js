@@ -234,7 +234,7 @@ async function capturePsbCsv() {
         const hint = [el.getAttribute("placeholder"), el.getAttribute("aria-label"),
           el.getAttribute("name"), el.getAttribute("data-testid")].join(" ").toLowerCase();
         return type === "date" || /дата|period|период|с\s*\(от\)|по\s*\(до\)/i.test(hint) ||
-          /^\\d{2}\\.\\d{2}\\.\\d{4}$/.test(el.value || "");
+          /^\d{2}\.\d{2}\.\d{4}$/.test(el.value || "");
       });
     if (dateInputs.length >= 2) {
       const today = new Date();
