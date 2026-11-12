@@ -27,12 +27,13 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const isOzon = r => [r.name,r.category,r.purpose].some(v => /\bozon\b/i.test(String(v || '')));
 function msg(text, error=false) { $('message').textContent=text; $('message').className='message'+(error?' error':''); }
 const isPsb = r => /псб|psb/i.test(String(r.source || ''));
+const isSber = r => /сбер/i.test(String(r.source || ''));
 function filtered() {
  const q=$('search').value.trim().toLowerCase();
  const source=$('sourceFilter').value;
  const rows=operations.map((r,i)=>({r,i})).filter(({r}) =>
   (!q || [r.date_local,r.name,r.purpose,r.category,r.debit,r.credit,r.amount].some(v=>String(v??'').toLowerCase().includes(q))) &&
-  (source==='all' || (source==='psb' ? isPsb(r) : !isPsb(r))) &&
+  (source==='all' || (source==='psb' ? isPsb(r) : source==='sber' ? isSber(r) : source==='ozon' ? !isPsb(r) && !isSber(r) : true)) &&
   !($('exclude').checked && isOzon(r))
  );
  // Keep the default chronological order, or sort by numeric credit descending.
@@ -62,7 +63,7 @@ function render() {
  const chosen=list.filter(({i,r})=>selected.has(i) && r.status!=='GROUP_OPERATION_HOLD').map(({r})=>r);
  const sum=k=>chosen.reduce((a,r)=>a+Number(r[k]||0),0);
  const source=$('sourceFilter').value;
- const totalLabel=source==='psb'?'ПСБ':source==='ozon'?'Ozon':'всем банкам';
+ const totalLabel=source==='psb'?'ПСБ':source==='sber'?'Сбербанк':source==='ozon'?'Ozon':'всем банкам';
  $('totals').innerHTML=chosen.length?`<tr><td colspan="6">Итого по ${totalLabel} (выбрано: ${chosen.length})</td><td class="num">${money(sum('debit'))}</td><td class="num">${money(sum('credit'))}</td><td class="num">${money(sum('amount'))}</td></tr>`:`<tr><td colspan="9" class="empty">Нет выбранных операций для текущего фильтра (${totalLabel}).</td></tr>`;
 }
 let dateRefreshTimer = null;
@@ -126,6 +127,27 @@ $('psbLoad').onclick=async()=>{
  finally{button.disabled=false;}
 };
 
+
+$('sberLoad').onclick=async()=>{
+ const file=$('sberSourceFile').files[0];
+ if(!file){$('sberSourceFile').click();msg('Выберите PDF-выписку Сбербанка.');return;}
+ if(!$('start').value||!$('end').value||$('start').value>$('end').value){msg('Проверьте даты отображаемого периода.',true);return;}
+ const button=$('sberLoad');button.disabled=true;msg('Читаю PDF и импортирую операции Сбербанка…');
+ try{
+  const form=new FormData();form.append('file',file);
+  const url=`/api/sber/import?start=${encodeURIComponent($('start').value)}&end=${encodeURIComponent($('end').value)}`;
+  const response=await fetch(url,{method:'POST',body:form,cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Не удалось импортировать PDF Сбербанка');
+  await reloadPeriodFromDatabase();
+  await refreshDbStatus(data.database);
+  const sync=data.sync||{},sber=data.sber||{};
+  msg(`Сбербанк: новых ${sync.new||0}, обновлено ${sync.updated||0}, без изменений ${sync.unchanged||0}. Всего операций Сбербанка в базе: ${sber.database_total||0}. Найдено в PDF: ${sber.imported_from_file||0}.`);
+  $('sberSourceFile').value='';
+ }catch(error){msg(error.message,true);}
+ finally{button.disabled=false;}
+};
+
 $('search').oninput=render;
 $('sourceFilter').onchange=render;
 $('sortOrder').onchange=render;
@@ -143,12 +165,12 @@ $('export').onclick=async()=>{
  } catch(e){msg(e.message,true);}
 };
 
-let lastDatabaseSync=null,lastDatabaseTotal=null,lastPsbSync=null,lastPsbTotal=null,databasePollInProgress=false,databasePollTimer=null;
+let lastDatabaseSync=null,lastDatabaseTotal=null,lastPsbSync=null,lastPsbTotal=null,lastSberSync=null,lastSberTotal=null,databasePollInProgress=false,databasePollTimer=null;
 async function refreshDbStatus(stats) {
  try {
   if(!stats){const response=await fetch('/api/stats?_='+Date.now(),{cache:'no-store'});if(!response.ok)throw Error('Не удалось прочитать базу');stats=await response.json();}
   const last=stats.last_sync_at?new Date(stats.last_sync_at).toLocaleString():'ещё не выполнялась';
-  $('dbStatus').textContent=`Локальная база SQLite: Ozon — ${stats.total||0}, ПСБ — ${stats.psb_total||0}. Подтверждённых Ozon: ${stats.confirmed||0}, HOLD: ${stats.hold||0}. Последнее обновление: ${last}.`;
+  $('dbStatus').textContent=`Локальная база SQLite: Ozon — ${stats.total||0}, ПСБ — ${stats.psb_total||0}, Сбербанк — ${stats.sber_total||0}. Подтверждённых Ozon: ${stats.confirmed||0}, HOLD: ${stats.hold||0}. Последнее обновление: ${last}.`;
  } catch(e){$('dbStatus').textContent='Не удалось получить состояние локальной базы: '+e.message;}
 }
 async function checkDatabaseForExternalChanges(){
@@ -159,9 +181,11 @@ async function checkDatabaseForExternalChanges(){
   if(!response.ok)throw Error('HTTP '+response.status);
   const stats=await response.json(),sync=stats.last_sync_at||null,total=Number(stats.total||0);
   const psbSync=stats.psb_last_sync_at||null,psbTotal=Number(stats.psb_total||0);
+  const sberSync=stats.sber_last_sync_at||null,sberTotal=Number(stats.sber_total||0);
   const changed=sync!==lastDatabaseSync||(lastDatabaseTotal!==null&&total!==lastDatabaseTotal)||
-   psbSync!==lastPsbSync||(lastPsbTotal!==null&&psbTotal!==lastPsbTotal);
-  lastDatabaseSync=sync;lastDatabaseTotal=total;lastPsbSync=psbSync;lastPsbTotal=psbTotal;
+   psbSync!==lastPsbSync||(lastPsbTotal!==null&&psbTotal!==lastPsbTotal)||
+   sberSync!==lastSberSync||(lastSberTotal!==null&&sberTotal!==lastSberTotal);
+  lastDatabaseSync=sync;lastDatabaseTotal=total;lastPsbSync=psbSync;lastPsbTotal=psbTotal;lastSberSync=sberSync;lastSberTotal=sberTotal;
   if(changed){await reloadPeriodFromDatabase();lastDatabaseSync=sync;lastDatabaseTotal=total;lastPsbSync=psbSync;lastPsbTotal=psbTotal;}
   await refreshDbStatus(stats);
  }catch(e){$('dbStatus').textContent='Автообновление: ошибка проверки локальной базы ('+e.message+').';}
@@ -174,6 +198,7 @@ async function initializeDashboard(){
   const stats=await response.json();
   lastDatabaseSync=stats.last_sync_at||null;lastDatabaseTotal=Number(stats.total||0);
   lastPsbSync=stats.psb_last_sync_at||null;lastPsbTotal=Number(stats.psb_total||0);
+  lastSberSync=stats.sber_last_sync_at||null;lastSberTotal=Number(stats.sber_total||0);
   await refreshDbStatus(stats);
  }catch(e){await refreshDbStatus();}
  await reloadPeriodFromDatabase();
