@@ -49,6 +49,7 @@
       </div>
       <div class="import-grid sber-manual-import"><div class="import-row"><label class="file-label">Выписка Сбербанка (PDF)<input id="sberSourceFile" type="file" accept=".pdf,application/pdf"></label><button id="sberLoad" type="button" class="primary import-action">Импортировать PDF Сбербанка</button><span class="import-note">Загрузите PDF-выписку по дебетовой карте. Операции сохраняются отдельно, повторный импорт не создаёт дубликаты.</span></div></div>
       <div class="import-grid"><div class="import-row"><button id="databaseExport" type="button">Экспортировать зашифрованную базу SQLite</button><span class="import-note">Создаёт резервную копию ozon_operations.sqlite3. Для шифрования потребуется пароль.</span></div></div>
+      <div class="import-grid"><div class="import-row"><label class="file-label">Зашифрованная база SQLite (.enc)<input id="databaseImportFile" type="file" accept=".enc,application/octet-stream"></label><button id="databaseImport" type="button" class="primary import-action">Восстановить базу из файла</button><span class="import-note">Восстановление заменит текущие данные Ozon, ПСБ и Сбербанка содержимым резервной копии.</span></div></div>
       <div id="dbStatus" class="hint">Загружаю состояние локальной базы…</div>
     </section>
     <section class="panel table-panel">
