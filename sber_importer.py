@@ -97,7 +97,7 @@ def parse_sber_pdf(content: bytes) -> list[dict[str, Any]]:
             continue
         if pending and pending["auth"] and line.strip():
             stripped = line.strip()
-            if not re.search(r"Страница \d+ из \d+|Продолжение на следующей странице|ДАТА ОПЕРАЦИИ|Дата обработки|Описание операции|Для проверки подлинности", stripped, re.I):
+            if not re.search(r"Страница \d+ из \d+|Продолжение на следующей странице|ДАТА ОПЕРАЦИИ|Дата обработки|Описание операции|и код авторизации|В валюте счёта|Выписка по счёту|Для проверки подлинности", stripped, re.I):
                 pending["details"] += " " + stripped
     save_pending()
     if not operations:
