@@ -281,6 +281,76 @@ def export_encrypted_database():
                      as_attachment=True, download_name=filename)
 
 
+@app.post("/api/database/import")
+def import_encrypted_database():
+    """Decrypt and validate a backup before atomically replacing the live SQLite database."""
+    from pathlib import Path
+    import sqlite3
+    import tempfile
+    from cryptography.exceptions import InvalidTag
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+    from ozon_storage import DEFAULT_DB_PATH
+
+    uploaded = request.files.get("file")
+    password = request.form.get("password", "")
+    if uploaded is None or not uploaded.filename:
+        return jsonify(error="Выберите зашифрованную резервную копию .sqlite3.enc."), 400
+    if len(password) < 10:
+        return jsonify(error="Введите пароль длиной не менее 10 символов."), 400
+
+    encrypted = uploaded.read()
+    magic = b"OZONENC1"
+    header_size = len(magic) + 16 + 12
+    if len(encrypted) <= header_size + 16 or not encrypted.startswith(magic):
+        return jsonify(error="Файл не является корректной резервной копией Ozon Bill."), 400
+
+    salt = encrypted[len(magic):len(magic) + 16]
+    nonce_start = len(magic) + 16
+    nonce = encrypted[nonce_start:nonce_start + 12]
+    ciphertext = encrypted[header_size:]
+    try:
+        key = Scrypt(salt=salt, length=32, n=2**15, r=8, p=1).derive(password.encode("utf-8"))
+        database_bytes = AESGCM(key).decrypt(nonce, ciphertext, magic + salt)
+    except (InvalidTag, ValueError):
+        return jsonify(error="Не удалось расшифровать файл. Проверьте пароль и целостность резервной копии."), 400
+
+    source_path = Path(os.getenv("OZON_DB_PATH") or DEFAULT_DB_PATH).expanduser()
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        # Stage the restored database beside the live file so os.replace is atomic.
+        with tempfile.NamedTemporaryFile(prefix=".ozon-restore-", suffix=".sqlite3",
+                                         dir=str(source_path.parent), delete=False) as staged:
+            temporary_path = Path(staged.name)
+            staged.write(database_bytes)
+            staged.flush()
+            os.fsync(staged.fileno())
+
+        check = sqlite3.connect(f"file:{temporary_path.resolve()}?mode=ro", uri=True, timeout=30)
+        try:
+            integrity = check.execute("PRAGMA quick_check").fetchone()
+            tables = {row[0] for row in check.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )}
+            if not integrity or integrity[0] != "ok" or "operations" not in tables:
+                raise ValueError("В резервной копии нет корректной базы Ozon Bill.")
+        finally:
+            check.close()
+
+        os.replace(temporary_path, source_path)
+        temporary_path = None
+        return jsonify(ok=True, message="Резервная копия успешно восстановлена. Данные Ozon, ПСБ и Сбербанка заменены содержимым файла.")
+    except (OSError, sqlite3.DatabaseError, ValueError) as exc:
+        return jsonify(error=f"Не удалось восстановить базу: {exc}"), 400
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 @app.post("/api/export")
 def export_csv():
     payload = request.get_json(silent=True) or {}
