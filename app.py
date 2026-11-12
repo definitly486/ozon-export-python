@@ -13,6 +13,8 @@ from ozon_client import OzonClient, OzonApiError, CONFIRMED_STATUS
 from ozon_storage import get_all_operations, get_stats, sync_operations
 from psb_importer import PsbStatementError, convert_psb_operations, parse_psb_csv
 from psb_storage import get_all_psb_operations, get_psb_stats, sync_psb_operations
+from sber_importer import SberStatementError, convert_sber_operations, parse_sber_pdf
+from sber_storage import get_all_sber_operations, get_sber_stats, sync_sber_operations
 
 app = Flask(__name__)
 
@@ -72,13 +74,15 @@ def _combined_transactions(start: date, end: date):
         get_all_operations(), start, end
     )
     psb_rows = convert_psb_operations(get_all_psb_operations(), start, end)
-    items = ozon_rows + psb_rows
+    sber_rows = convert_sber_operations(get_all_sber_operations(), start, end)
+    items = ozon_rows + psb_rows + sber_rows
     items.sort(key=lambda row: row.get("time", ""), reverse=True)
     return items, {
         "confirmed": ozon_summary["confirmed"],
         "hold": ozon_summary["hold"],
         "excluded_other": ozon_summary["excluded_other"],
         "psb": len(psb_rows),
+        "sber": len(sber_rows),
     }
 
 
@@ -91,7 +95,7 @@ def list_operations():
             items=items,
             count=len(items),
             summary=summary,
-            database={**get_stats(), "psb_total": get_psb_stats()["total"]},
+            database={**get_stats(), "psb_total": get_psb_stats()["total"], "sber_total": get_sber_stats()["total"]},
         )
     except (ValueError, OzonApiError) as exc:
         return jsonify(error=str(exc)), 400
@@ -103,6 +107,9 @@ def database_stats():
     psb_stats = get_psb_stats()
     stats["psb_total"] = psb_stats["total"]
     stats["psb_last_sync_at"] = psb_stats["last_sync_at"]
+    sber_stats = get_sber_stats()
+    stats["sber_total"] = sber_stats["total"]
+    stats["sber_last_sync_at"] = sber_stats["last_sync_at"]
     return jsonify(stats)
 
 
@@ -196,6 +203,34 @@ def import_psb_statement():
             database={**get_stats(), "psb_total": get_psb_stats()["total"]},
         )
     except (PsbStatementError, ValueError, OzonApiError) as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@app.post("/api/sber/import")
+def import_sber_statement():
+    try:
+        start, end = _requested_period()
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        return jsonify(error="Выберите PDF-выписку Сбербанка."), 400
+    if not uploaded.filename.lower().endswith(".pdf"):
+        return jsonify(error="Для импорта Сбербанка выберите файл PDF."), 400
+    try:
+        parsed = parse_sber_pdf(uploaded.read())
+        sync_summary = sync_sber_operations(parsed)
+        items, summary = _combined_transactions(start, end)
+        return jsonify(
+            items=items,
+            count=len(items),
+            summary=summary,
+            sync=sync_summary,
+            sber={"imported_from_file": len(parsed), "database_total": get_sber_stats()["total"]},
+            database={**get_stats(), "psb_total": get_psb_stats()["total"], "sber_total": get_sber_stats()["total"]},
+        )
+    except (SberStatementError, ValueError, OzonApiError) as exc:
         return jsonify(error=str(exc)), 400
 
 
