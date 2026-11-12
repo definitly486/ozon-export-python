@@ -63,13 +63,14 @@ def parse_sber_pdf(content: bytes) -> list[dict[str, Any]]:
         details = pending["details"].strip()
         if not details:
             raise SberStatementError(f"Не найдено описание операции от {pending['date']}.")
-        fingerprint = "\x1f".join((dt.isoformat(timespec="minutes"), pending["auth"], pending["category"], str(amount), pending["balance"], details))
+        fingerprint = "\x1f".join((dt.isoformat(timespec="minutes"), pending["processing_date"], pending["auth"], pending["category"], str(amount), pending["balance"], details))
         operation_id = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
         operations.append({
             "operation_id": operation_id,
             "time": dt.isoformat(timespec="minutes"),
             "date_local": dt.strftime("%Y-%m-%d %H:%M"),
             "auth_code": pending["auth"],
+            "processing_date": datetime.strptime(pending["processing_date"], "%d.%m.%Y").date().isoformat(),
             "category": pending["category"],
             "details": details,
             "amount": str(amount if pending["amount_text"].lstrip().startswith("+") else -amount),
@@ -89,7 +90,8 @@ def parse_sber_pdf(content: bytes) -> list[dict[str, Any]]:
             }
             continue
         detail = DETAIL.match(line)
-        if detail and pending and detail.group(1) == pending["date"]:
+        if detail and pending:
+            pending["processing_date"] = detail.group(1)
             pending["auth"] = detail.group(2)
             pending["details"] += detail.group(3).strip()
             continue
