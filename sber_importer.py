@@ -85,7 +85,7 @@ def parse_sber_pdf(content: bytes) -> list[dict[str, Any]]:
             pending = {
                 "date": match.group(1), "time": match.group(2),
                 "category": match.group(3).strip(), "amount_text": match.group(4).strip(),
-                "balance": match.group(5).strip(), "auth": "", "details": "",
+                "balance": match.group(5).strip(), "auth": "", "processing_date": "", "details": "",
             }
             continue
         detail = DETAIL.match(line)
