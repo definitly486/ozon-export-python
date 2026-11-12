@@ -33,7 +33,12 @@ PSB_URL = "https://ib.psbank.ru/login"
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", page="operations")
+
+
+@app.get("/settings")
+def settings():
+    return render_template("index.html", page="settings")
 
 
 @app.post("/api/connect")
