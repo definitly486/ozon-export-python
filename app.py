@@ -338,7 +338,16 @@ def import_encrypted_database():
         finally:
             check.close()
 
-        os.replace(temporary_path, source_path)
+        # Use SQLite's backup API to replace database contents safely, including
+        # when the live database uses WAL mode.
+        restored = sqlite3.connect(f"file:{temporary_path.resolve()}?mode=ro", uri=True, timeout=30)
+        target = sqlite3.connect(str(source_path), timeout=30)
+        try:
+            restored.backup(target)
+        finally:
+            target.close()
+            restored.close()
+        temporary_path.unlink(missing_ok=True)
         temporary_path = None
         return jsonify(ok=True, message="Резервная копия успешно восстановлена. Данные Ozon, ПСБ и Сбербанка заменены содержимым файла.")
     except (OSError, sqlite3.DatabaseError, ValueError) as exc:
