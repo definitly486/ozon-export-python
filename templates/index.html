@@ -6,7 +6,7 @@
 </head>
 <body>
   <main class="container">
-    <header><div><div class="eyebrow">OZON БАНК · ПСБ</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><div class="header-tools"><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div></header>
+    <header><div><div class="eyebrow">OZON БАНК · ПСБ · СБЕРБАНК</div><h1>Выписка по операциям</h1><p class="muted">Локальный Python-инструмент для выгрузки операций в CSV</p></div><div class="header-tools"><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div></header>
     <section class="panel controls">
       <div class="actions"><button id="connect" class="primary">Открыть Ozon Банк в Firefox</button><button id="connectPsb" type="button">Открыть ПСБ Банк в Firefox</button><span id="status" class="muted">Используется обычный Firefox, без Selenium</span></div>
       <div class="dates date-controls">
@@ -47,14 +47,15 @@
           <span class="import-note">Можно загрузить CSV, скачанный из интернет-банка ПСБ. Новые операции добавятся, дубликаты не создаются.</span>
         </div>
       </div>
+      <div class="import-grid sber-manual-import"><div class="import-row"><label class="file-label">Выписка Сбербанка (PDF)<input id="sberSourceFile" type="file" accept=".pdf,application/pdf"></label><button id="sberLoad" type="button" class="primary import-action">Импортировать PDF Сбербанка</button><span class="import-note">Загрузите PDF-выписку по дебетовой карте. Операции сохраняются отдельно, повторный импорт не создаёт дубликаты.</span></div></div>
       <div id="dbStatus" class="hint">Загружаю состояние локальной базы…</div>
     </section>
     <section class="panel table-panel">
-      <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="source-filter">Банк<select id="sourceFilter" aria-label="Показывать операции выбранного банка"><option value="all">Все банки</option><option value="ozon">Только Ozon</option><option value="psb">Только ПСБ</option></select></label><label class="source-filter">Сортировка<select id="sortOrder" aria-label="Сортировка операций"><option value="date-desc">По дате (сначала новые)</option><option value="credit-desc">Кредит: по убыванию</option></select></label><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
+      <div class="toolbar"><input id="search" type="search" placeholder="Поиск по дате, названию, цели, категории или сумме…"><label class="source-filter">Банк<select id="sourceFilter" aria-label="Показывать операции выбранного банка"><option value="all">Все банки</option><option value="ozon">Только Ozon</option><option value="psb">Только ПСБ</option><option value="sber">Только Сбербанк</option></select></label><label class="source-filter">Сортировка<select id="sortOrder" aria-label="Сортировка операций"><option value="date-desc">По дате (сначала новые)</option><option value="credit-desc">Кредит: по убыванию</option></select></label><label class="check"><input id="exclude" type="checkbox"> Исключить строки Ozon</label><div class="selection"><span id="count">Операций: 0</span><button id="all">Выбрать все</button><button id="none">Снять выбор</button><button id="export" class="primary" disabled>Скачать CSV</button></div></div>
       <div class="table-wrap"><table><thead><tr><th></th><th>Дата</th><th>Банк</th><th>Название</th><th>Цель</th><th>Категория</th><th class="num">Дебет</th><th class="num">Кредит</th><th class="num">Итого</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="empty">Сначала войдите в Ozon Банк и загрузите выписку.</td></tr></tbody><tfoot id="totals"></tfoot></table></div>
     </section>
     <div id="message" role="status" class="message"></div>
     <footer>Данные обрабатываются локально на вашем компьютере. Не публикуйте папку профиля Firefox и файлы сессии.</footer>
   </main>
-  <script src="/static/app.js?v=20261111-11"></script>
+  <script src="/static/app.js?v=20261112-1"></script>
 </body></html>
