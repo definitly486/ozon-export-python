@@ -148,6 +148,22 @@ $('sberLoad').onclick=async()=>{
  finally{button.disabled=false;}
 };
 
+$('databaseExport').onclick=async()=>{
+ const password=prompt('Придумайте пароль для шифрования резервной копии (не менее 10 символов):');
+ if(password===null)return;
+ if(password.length<10){msg('Пароль должен содержать не менее 10 символов.',true);return;}
+ const confirmation=prompt('Повторите пароль для подтверждения:');
+ if(confirmation===null)return;
+ if(password!==confirmation){msg('Пароли не совпадают.',true);return;}
+ const button=$('databaseExport');button.disabled=true;msg('Создаю и шифрую резервную копию SQLite…');
+ try{
+  const response=await fetch('/api/database/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
+  if(!response.ok){const data=await response.json();throw Error(data.error||'Не удалось экспортировать базу');}
+  const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='ozon_operations_'+ymd(new Date())+'.sqlite3.enc';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  msg('Зашифрованная резервная копия скачана. Сохраните пароль отдельно: без него файл не открыть.');
+ }catch(error){msg(error.message,true);}finally{button.disabled=false;}
+};
 $('search').oninput=render;
 $('sourceFilter').onchange=render;
 $('sortOrder').onchange=render;
