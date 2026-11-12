@@ -234,6 +234,47 @@ def import_sber_statement():
         return jsonify(error=str(exc)), 400
 
 
+@app.post("/api/database/export")
+def export_encrypted_database():
+    """Create a consistent SQLite snapshot and encrypt it with a user-supplied password."""
+    payload = request.get_json(silent=True) or {}
+    password = payload.get("password") if isinstance(payload, dict) else None
+    if not isinstance(password, str) or len(password) < 10:
+        return jsonify(error="Пароль должен содержать не менее 10 символов."), 400
+
+    from pathlib import Path
+    import secrets
+    import sqlite3
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+    from ozon_storage import DEFAULT_DB_PATH
+
+    source_path = Path(os.getenv("OZON_DB_PATH") or DEFAULT_DB_PATH).expanduser()
+    if not source_path.is_file():
+        return jsonify(error="Файл базы данных ещё не создан."), 404
+
+    magic = b"OZONENC1"
+    salt = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)
+    key = Scrypt(salt=salt, length=32, n=2**15, r=8, p=1).derive(password.encode("utf-8"))
+    source = sqlite3.connect(f"file:{source_path.resolve()}?mode=ro", uri=True, timeout=30)
+    try:
+        snapshot = sqlite3.connect(":memory:")
+        try:
+            source.backup(snapshot)
+            database_bytes = snapshot.serialize()
+        finally:
+            snapshot.close()
+    finally:
+        source.close()
+
+    # Layout: magic + salt + nonce + AES-256-GCM ciphertext and authentication tag.
+    encrypted = magic + salt + nonce + AESGCM(key).encrypt(nonce, database_bytes, magic + salt)
+    filename = f"ozon_operations_{date.today().isoformat()}.sqlite3.enc"
+    return send_file(io.BytesIO(encrypted), mimetype="application/octet-stream",
+                     as_attachment=True, download_name=filename)
+
+
 @app.post("/api/export")
 def export_csv():
     payload = request.get_json(silent=True) or {}
