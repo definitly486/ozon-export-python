@@ -164,6 +164,27 @@ $('databaseExport').onclick=async()=>{
   msg('Зашифрованная резервная копия скачана. Сохраните пароль отдельно: без него файл не открыть.');
  }catch(error){msg(error.message,true);}finally{button.disabled=false;}
 };
+
+$('databaseImport').onclick=async()=>{
+ const file=$('databaseImportFile').files[0];
+ if(!file){msg('Сначала выберите файл резервной копии .sqlite3.enc.',true);return;}
+ if(!confirm('ВНИМАНИЕ! Текущая база Ozon, ПСБ и Сбербанка будет полностью заменена данными из выбранной резервной копии. Продолжить?'))return;
+ const password=prompt('Введите пароль, который использовался при создании резервной копии:');
+ if(password===null)return;
+ if(password.length<10){msg('Пароль должен содержать не менее 10 символов.',true);return;}
+ const button=$('databaseImport');button.disabled=true;msg('Расшифровываю и проверяю резервную копию…');
+ try{
+  const form=new FormData();form.append('file',file);form.append('password',password);
+  const response=await fetch('/api/database/import',{method:'POST',body:form,cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'Не удалось восстановить базу');
+  $('databaseImportFile').value='';
+  msg(data.message||'База успешно восстановлена.');
+  await reloadPeriodFromDatabase();
+  await refreshDbStatus();
+ }catch(error){msg(error.message,true);}
+ finally{button.disabled=false;}
+};
 $('search').oninput=render;
 $('sourceFilter').onchange=render;
 $('sortOrder').onchange=render;
