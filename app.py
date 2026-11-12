@@ -257,16 +257,22 @@ def export_encrypted_database():
     salt = secrets.token_bytes(16)
     nonce = secrets.token_bytes(12)
     key = Scrypt(salt=salt, length=32, n=2**15, r=8, p=1).derive(password.encode("utf-8"))
-    source = sqlite3.connect(f"file:{source_path.resolve()}?mode=ro", uri=True, timeout=30)
-    try:
-        snapshot = sqlite3.connect(":memory:")
+    import tempfile
+
+    # Back up to a temporary SQLite file instead of Connection.serialize(),
+    # which is not available in every Python SQLite build.
+    with tempfile.TemporaryDirectory(prefix="ozon-db-export-") as temp_dir:
+        snapshot_path = Path(temp_dir) / "snapshot.sqlite3"
+        source = sqlite3.connect(f"file:{source_path.resolve()}?mode=ro", uri=True, timeout=30)
         try:
-            source.backup(snapshot)
-            database_bytes = snapshot.serialize()
+            snapshot = sqlite3.connect(str(snapshot_path))
+            try:
+                source.backup(snapshot)
+            finally:
+                snapshot.close()
         finally:
-            snapshot.close()
-    finally:
-        source.close()
+            source.close()
+        database_bytes = snapshot_path.read_bytes()
 
     # Layout: magic + salt + nonce + AES-256-GCM ciphertext and authentication tag.
     encrypted = magic + salt + nonce + AESGCM(key).encrypt(nonce, database_bytes, magic + salt)
