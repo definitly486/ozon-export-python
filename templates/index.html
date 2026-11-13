@@ -2,11 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ozon Bill — выписка</title><link rel="stylesheet" href="/static/style.css?v=20261112-2">
+  <title>Ozon Bill — выписка</title><link rel="stylesheet" href="/static/style.css?v=20261113-1">
 </head>
 <body class="{{ 'page-settings' if page == 'settings' else 'page-operations' }}">
   <main class="container">
-    <header><div><div class="eyebrow">OZON БАНК · ПСБ · СБЕРБАНК</div><h1>{{ 'Импорт и настройки' if page == 'settings' else 'Операции и чеки' }}</h1><p class="muted">{{ 'Подключение банков и управление резервными копиями' if page == 'settings' else 'Полноэкранный просмотр операций и чеков' }}</p></div><div class="header-tools"><a class="page-link" href="{{ url_for('index') if page == 'settings' else url_for('settings') }}">{{ '← К операциям' if page == 'settings' else 'Импорт и настройки →' }}</a><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div></header>
+    <header><div><div class="eyebrow">OZON БАНК · ПСБ · СБЕРБАНК</div><h1>{{ 'Импорт и настройки' if page == 'settings' else 'Операции и чеки' }}</h1><p class="muted">{{ 'Подключение банков и управление резервными копиями' if page == 'settings' else 'Полноэкранный просмотр операций и чеков' }}</p></div><div class="header-tools"><a class="page-link" href="{{ url_for('index') if page == 'settings' else url_for('settings') }}">{{ '← К операциям' if page == 'settings' else 'Импорт и настройки →' }}</a><button id="designToggle" class="design-toggle" type="button" aria-pressed="false">✨ Новый дизайн</button><span class="pill">FreeBSD / Python</span></div><a class="page-link" href="/receipts">Чеки →</a></header>
     <section class="panel controls">
       <div class="actions"><button id="connect" class="primary">Открыть Ozon Банк в Firefox</button><button id="connectPsb" type="button">Открыть ПСБ Банк в Firefox</button><span id="status" class="muted">Используется обычный Firefox, без Selenium</span></div>
       <div class="dates date-controls">
