@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ozon Bill — чеки</title><link rel="stylesheet" href="/static/style.css?v=20261113-1">
+<style>
+.receipts-page{max-width:1500px;margin:28px auto;padding:0 22px}.receipt-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px;border-bottom:1px solid #e9edf2}.receipt-toolbar input{flex:1;min-width:220px}.receipt-table{width:100%;border-collapse:collapse}.receipt-table td,.receipt-table th{padding:12px;border-bottom:1px solid #edf0f4;text-align:left}.receipt-table th{background:#f8f9fb}.receipt-row{cursor:pointer}.receipt-row:hover{background:#f8faff}.receipt-details{background:#fafbfd;padding:16px 22px}.receipt-details table{width:100%;font-size:12px}.receipt-details td,.receipt-details th{padding:8px}.receipt-meta{color:#78869a;font-size:12px;margin:6px 0}.receipt-summary{padding:12px 16px;color:#52627a;font-size:13px}.receipt-upload{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:16px}.receipt-upload input{max-width:440px}.receipt-toggle{border:0;background:transparent;color:#245b9e;font-size:18px;padding:2px 8px}
+@media(max-width:650px){.receipts-page{padding:0 9px}.receipt-upload{align-items:stretch;flex-direction:column}.receipt-upload input{max-width:100%}}
+</style></head>
+<body>
+<main class="receipts-page">
+<header><div><div class="eyebrow">OZON BILL · ФИСКАЛЬНЫЕ ДОКУМЕНТЫ</div><h1>Чеки</h1><p class="muted">Отдельный список чеков и подробный состав каждой покупки</p></div><div class="header-tools"><a class="page-link" href="/">← К операциям</a><a class="page-link" href="/settings">Импорт и настройки →</a></div></header>
+<section class="panel">
+<div class="receipt-upload"><label class="file-label">JSON-выгрузка чеков Ozon<input id="receiptFile" type="file" accept=".json,application/json"></label><button id="receiptImport" class="primary">Импортировать чеки</button><span id="receiptStatus" class="muted">Выберите JSON с массивом receipts.</span></div>
+<div class="receipt-summary" id="receiptSummary">Загрузка списка чеков…</div>
+<div class="receipt-toolbar"><input id="receiptSearch" type="search" placeholder="Поиск по продавцу, ИНН, номеру чека или товару…"><span id="receiptCount"></span></div>
+<div class="table-wrap"><table class="receipt-table"><thead><tr><th></th><th>Дата</th><th>Продавец</th><th>ИНН</th><th>Фискальный №</th><th style="text-align:right">Сумма</th></tr></thead><tbody id="receiptRows"><tr><td colspan="6" class="empty">Чеков пока нет.</td></tr></tbody></table></div>
+</section><div id="receiptMessage" class="message" role="status"></div><footer>Чеки хранятся отдельно от банковских операций в той же локальной базе SQLite.</footer>
+</main><script src="/static/receipts.js?v=20261113-1"></script></body></html>
