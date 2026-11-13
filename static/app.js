@@ -5,20 +5,19 @@ const first = new Date(today.getFullYear(), today.getMonth(), 1);
 const DEFAULT_START = ymd(first), DEFAULT_END = ymd(today);
 $('end').max = DEFAULT_END;
 
-// Restore the last selected period after a reload or browser restart.
+// Keep the start of the selected period, but always use today's date as its end.
+// The old saved end date caused the period to remain stuck after subsequent days.
 try {
  const savedStart = localStorage.getItem('ozonBillStartDate');
- const savedEnd = localStorage.getItem('ozonBillEndDate');
  $('start').value = savedStart && /^\d{4}-\d{2}-\d{2}$/.test(savedStart) ? savedStart : DEFAULT_START;
- $('end').value = savedEnd && /^\d{4}-\d{2}-\d{2}$/.test(savedEnd) && savedEnd <= DEFAULT_END ? savedEnd : DEFAULT_END;
 } catch (_) {
  $('start').value = DEFAULT_START;
- $('end').value = DEFAULT_END;
 }
+$('end').value = DEFAULT_END;
+
 function saveSelectedPeriod() {
  try {
   localStorage.setItem('ozonBillStartDate', $('start').value);
-  localStorage.setItem('ozonBillEndDate', $('end').value);
  } catch (_) {}
 }
 let operations = []; let selected = new Set();
