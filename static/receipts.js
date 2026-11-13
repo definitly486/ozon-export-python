@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=v=>{const n=Number(v||0);return Number.isFinite(n)?(n/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽':esc(v)};
+const money=v=>{if(v===null||v===undefined||v==='')return '—';const n=Number(String(v).replace(',','.'));return Number.isFinite(n)?n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽':esc(v)};
 const date=v=>{if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?esc(v):d.toLocaleString('ru-RU')};
 let receipts=[];
 function dataOf(r){return r.fiscalData||{}}
