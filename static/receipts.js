@@ -7,6 +7,27 @@ function dataOf(r){return r.fiscalData||{}}
 function metaOf(r){return r.receipt||{}}
 function receiptDate(r){const m=metaOf(r),d=dataOf(r);return d.dateTime||m.createdDate||m.receiveDate||''}
 function total(r){const d=dataOf(r),m=metaOf(r);return d.totalSum??m.totalSum??0}
+function amount(r){const n=Number(String(total(r)).replace(',','.'));return Number.isFinite(n)?n:0}
+function operationType(r){const n=Number(dataOf(r).operationType);return Number.isInteger(n)?n:0}
+function renderTotals(rows){
+ const sums={income:0,incomeReturn:0,expense:0,expenseReturn:0,unknown:0};
+ rows.forEach(({r})=>{
+  const value=amount(r);
+  switch(operationType(r)){
+   case 1:sums.income+=value;break;
+   case 2:sums.incomeReturn+=value;break;
+   case 3:sums.expense+=value;break;
+   case 4:sums.expenseReturn+=value;break;
+   default:sums.unknown+=value;
+  }
+ });
+ $('receiptTotals').innerHTML=
+  '<b>Приход:</b> '+money(sums.income-sums.incomeReturn)+
+  ' <span class="receipt-meta">(поступления '+money(sums.income)+' − возвраты '+money(sums.incomeReturn)+')</span>'+
+  ' &nbsp; <b>Расход:</b> '+money(sums.expense-sums.expenseReturn)+
+  ' <span class="receipt-meta">(расходы '+money(sums.expense)+' − возвраты '+money(sums.expenseReturn)+')</span>'+
+  (sums.unknown?' &nbsp; <span class="receipt-meta">Без типа операции: '+money(sums.unknown)+'</span>':'');
+}
 function seller(r){const d=dataOf(r),m=metaOf(r);return d.user||m.kktOwner||d.retailPlace||''}
 function render(){
  const q=$('receiptSearch').value.trim().toLowerCase();
@@ -15,6 +36,7 @@ function render(){
   return !q||[seller(r),d.userInn,m.kktOwnerInn,m.fiscalDocumentNumber,d.fiscalDocumentNumber,d.retailPlace,...items.map(x=>x.name)].some(v=>String(v??'').toLowerCase().includes(q));
  });
  $('receiptCount').textContent='Чеков: '+rows.length+' / '+receipts.length;
+ renderTotals(rows);
  $('receiptRows').innerHTML=rows.length?rows.map(({r,i})=>{
   const d=dataOf(r),m=metaOf(r),items=Array.isArray(d.items)?d.items:[];
   const inn=d.userInn||m.kktOwnerInn||'—',fdn=d.fiscalDocumentNumber||m.fiscalDocumentNumber||'—';
