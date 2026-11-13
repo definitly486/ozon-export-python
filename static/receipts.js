@@ -10,23 +10,19 @@ function total(r){const d=dataOf(r),m=metaOf(r);return d.totalSum??m.totalSum??0
 function amount(r){const n=Number(String(total(r)).replace(',','.'));return Number.isFinite(n)?n:0}
 function operationType(r){const n=Number(dataOf(r).operationType);return Number.isInteger(n)?n:0}
 function renderTotals(rows){
- const sums={income:0,incomeReturn:0,expense:0,expenseReturn:0,unknown:0};
+ const sums={purchases:0,returns:0,other:0};
  rows.forEach(({r})=>{
   const value=amount(r);
   switch(operationType(r)){
-   case 1:sums.income+=value;break;
-   case 2:sums.incomeReturn+=value;break;
-   case 3:sums.expense+=value;break;
-   case 4:sums.expenseReturn+=value;break;
-   default:sums.unknown+=value;
+   case 1:sums.purchases+=value;break;
+   case 2:sums.returns+=value;break;
+   default:sums.other+=value;
   }
  });
  $('receiptTotals').innerHTML=
-  '<b>Приход:</b> '+money(sums.income-sums.incomeReturn)+
-  ' <span class="receipt-meta">(поступления '+money(sums.income)+' − возвраты '+money(sums.incomeReturn)+')</span>'+
-  ' &nbsp; <b>Расход:</b> '+money(sums.expense-sums.expenseReturn)+
-  ' <span class="receipt-meta">(расходы '+money(sums.expense)+' − возвраты '+money(sums.expenseReturn)+')</span>'+
-  (sums.unknown?' &nbsp; <span class="receipt-meta">Без типа операции: '+money(sums.unknown)+'</span>':'');
+  '<b>Потрачено на покупки:</b> '+money(sums.purchases-sums.returns)+
+  ' <span class="receipt-meta">(покупки '+money(sums.purchases)+' − возвраты '+money(sums.returns)+')</span>'+
+  (sums.other?' &nbsp; <span class="receipt-meta">Другие типы операций (не включены): '+money(sums.other)+'</span>':'');
 }
 function seller(r){const d=dataOf(r),m=metaOf(r);return d.user||m.kktOwner||d.retailPlace||''}
 function render(){
