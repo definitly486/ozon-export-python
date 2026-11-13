@@ -15,8 +15,10 @@ from psb_importer import PsbStatementError, convert_psb_operations, parse_psb_cs
 from psb_storage import get_all_psb_operations, get_psb_stats, sync_psb_operations
 from sber_importer import SberStatementError, convert_sber_operations, parse_sber_pdf
 from sber_storage import get_all_sber_operations, get_sber_stats, sync_sber_operations
+from receipts_routes import receipts_bp
 
 app = Flask(__name__)
+app.register_blueprint(receipts_bp)
 
 @app.after_request
 def add_extension_cors_headers(response):
