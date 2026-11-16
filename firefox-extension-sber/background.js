@@ -169,16 +169,6 @@ async function captureSberPdf() {
   }
 }
 
-function toBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-  }
-  return btoa(binary);
-}
-
 async function importSber() {
   if (running) return;
   running = true;
@@ -205,11 +195,11 @@ async function importSber() {
       func: captureSberPdf
     });
     const pdf = result && result[0] ? result[0].result : null;
-    if (!(pdf instanceof ArrayBuffer) && !(pdf && pdf.type === "arraybuffer")) {
-      throw new Error("Не удалось получить PDF из вкладки Сбербанка. Перейдите к истории операций нужной карты/счёта и откройте экран, где доступно скачивание выписки в PDF.");
+    if (!(pdf instanceof ArrayBuffer)) {
+      throw new Error("Firefox не вернул PDF-данные из вкладки Сбербанка. Перейдите к истории операций нужной карты/счёта и откройте экран, где доступно скачивание выписки в PDF.");
     }
 
-    const buffer = pdf instanceof ArrayBuffer ? pdf : pdf;
+    const buffer = pdf;
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: "application/pdf" }), "sber_statement.pdf");
     const response = await fetch(LOCAL_IMPORT, {
