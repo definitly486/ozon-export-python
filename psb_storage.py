@@ -83,8 +83,11 @@ def get_all_psb_operations(db_path=None) -> list[dict[str, Any]]:
     return [json.loads(row["raw_json"]) for row in rows]
 
 
-def get_psb_stats(db_path=None) -> dict[str, int]:
+def get_psb_stats(db_path=None) -> dict[str, int | str | None]:
     init_psb_db(db_path)
     with _connect(db_path) as connection:
         total = connection.execute("SELECT COUNT(*) FROM psb_operations").fetchone()[0]
-    return {"total": total}
+        last_sync_at = connection.execute(
+            "SELECT MAX(imported_at) FROM psb_operations"
+        ).fetchone()[0]
+    return {"total": total, "last_sync_at": last_sync_at}

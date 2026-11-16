@@ -84,7 +84,7 @@ def sync_operations(
 ) -> dict[str, int | str]:
     """Insert new operations and update changed records using lastOperationId."""
     items = _extract_items(payload)
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
     counts = {"new": 0, "updated": 0, "unchanged": 0, "skipped": 0}
 
     init_db(db_path)

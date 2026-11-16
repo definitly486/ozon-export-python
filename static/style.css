@@ -138,3 +138,26 @@ body.design-modern .import-note{color:#8491a3}
 /* Clearly distinguish pending Ozon authorizations from completed operations. */
 .hold-badge{display:inline-block;margin-left:6px;padding:3px 7px;border-radius:6px;background:#fff0d8;color:#9a5a08;font-size:10px;font-weight:800;letter-spacing:.35px;vertical-align:1px}
 body.design-modern .hold-badge{background:#fff0d8;color:#9a5a08}
+
+
+/* Separate import/settings workspace from full-screen operations view. */
+.page-link{display:inline-flex;align-items:center;text-decoration:none;border:1px solid #d9dee7;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;color:#26364d;background:#fff}
+.page-operations .container{max-width:none;width:100%;margin:0;padding:14px 18px}
+.page-operations header{margin-bottom:12px}
+.page-operations header h1{font-size:25px}
+.page-operations .controls{display:none}
+.page-operations .table-panel{min-height:calc(100vh - 142px);display:flex;flex-direction:column;margin-bottom:8px}
+.page-operations .toolbar{flex:0 0 auto}
+.page-operations .table-wrap{flex:1;max-height:none;overflow:auto;min-height:calc(100vh - 235px)}
+.page-operations footer{padding-bottom:8px}
+.page-settings .table-panel{display:none}
+.page-settings .controls{display:block}
+.page-settings .container{max-width:1500px}
+@media(max-width:700px){
+ .page-operations .container{padding:8px}
+ .page-operations header{align-items:flex-start;gap:10px}
+ .page-operations .header-tools{flex-wrap:wrap;justify-content:flex-end}
+ .page-operations .table-panel{min-height:calc(100vh - 125px)}
+ .page-operations .table-wrap{min-height:calc(100vh - 255px)}
+ .page-link{font-size:12px;padding:8px 10px}
+}

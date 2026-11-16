@@ -7,6 +7,23 @@ function dataOf(r){return r.fiscalData||{}}
 function metaOf(r){return r.receipt||{}}
 function receiptDate(r){const m=metaOf(r),d=dataOf(r);return d.dateTime||m.createdDate||m.receiveDate||''}
 function total(r){const d=dataOf(r),m=metaOf(r);return d.totalSum??m.totalSum??0}
+function amount(r){const n=Number(String(total(r)).replace(',','.'));return Number.isFinite(n)?n:0}
+function operationType(r){const n=Number(dataOf(r).operationType);return Number.isInteger(n)?n:0}
+function renderTotals(rows){
+ const sums={purchases:0,returns:0,other:0};
+ rows.forEach(({r})=>{
+  const value=amount(r);
+  switch(operationType(r)){
+   case 1:sums.purchases+=value;break;
+   case 2:sums.returns+=value;break;
+   default:sums.other+=value;
+  }
+ });
+ $('receiptTotals').innerHTML=
+  '<b>Потрачено на покупки:</b> '+money(sums.purchases-sums.returns)+
+  ' <span class="receipt-meta">(покупки '+money(sums.purchases)+' − возвраты '+money(sums.returns)+')</span>'+
+  (sums.other?' &nbsp; <span class="receipt-meta">Другие типы операций (не включены): '+money(sums.other)+'</span>':'');
+}
 function seller(r){const d=dataOf(r),m=metaOf(r);return d.user||m.kktOwner||d.retailPlace||''}
 function render(){
  const q=$('receiptSearch').value.trim().toLowerCase();
@@ -15,6 +32,7 @@ function render(){
   return !q||[seller(r),d.userInn,m.kktOwnerInn,m.fiscalDocumentNumber,d.fiscalDocumentNumber,d.retailPlace,...items.map(x=>x.name)].some(v=>String(v??'').toLowerCase().includes(q));
  });
  $('receiptCount').textContent='Чеков: '+rows.length+' / '+receipts.length;
+ renderTotals(rows);
  $('receiptRows').innerHTML=rows.length?rows.map(({r,i})=>{
   const d=dataOf(r),m=metaOf(r),items=Array.isArray(d.items)?d.items:[];
   const inn=d.userInn||m.kktOwnerInn||'—',fdn=d.fiscalDocumentNumber||m.fiscalDocumentNumber||'—';

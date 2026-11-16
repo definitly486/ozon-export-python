@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Ozon Bill — импорт Сбербанка",
+  "version": "1.0.0",
+  "description": "Импортирует PDF-выписку Сбербанка из авторизованной вкладки Firefox в локальное приложение Ozon Bill.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://online.sberbank.ru/*",
+    "https://*.sberbank.ru/*",
+    "https://*.sber.ru/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_title": "Импортировать выписку Сбербанка"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ozon-bill-sber-import@local"
+    }
+  }
+}
